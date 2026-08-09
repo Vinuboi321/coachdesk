@@ -1,0 +1,38 @@
+# Render blueprint — the zero-cost deployment target.
+#
+# What "free" actually means here:
+#   · No persistent disk. The SQLite file lives in the container and is
+#     lost on every restart or redeploy. EPHEMERAL_STORAGE=true makes the
+#     app say so in the UI instead of quietly losing someone's work.
+#   · The demo account is rebuilt from seed on every boot, so the demo is
+#     always populated regardless.
+#   · Free services sleep after ~15 minutes idle. The first visitor after
+#     that waits roughly 50 seconds. See the README for the keep-alive
+#     ping that avoids it.
+#
+# If the app ever deserves real persistence, that's a paid disk here or
+# about $2–3/month on Fly.io with the included fly.toml.
+
+services:
+  - type: web
+    name: coachdesk
+    runtime: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true      # Render generates and stores this
+      - key: PUBLIC_DEMO
+        value: "true"
+      - key: EPHEMERAL_STORAGE
+        value: "true"
+      - key: DATABASE_FILE
+        value: /data/coachdesk.db
+      # Optional — leave unset and the features simply stay off.
+      # - key: ANTHROPIC_API_KEY
+      #   sync: false
+      # - key: SMTP_HOST
+      #   sync: false
