@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CoachDesk — start the server</title>
+<style>
+  body{font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:#F7F6F3;color:#1A1B18;display:grid;place-items:center;min-height:100vh;margin:0;padding:24px}
+  .c{max-width:440px;background:#fff;border:1px solid #E7E6DF;border-radius:18px;padding:32px;
+     box-shadow:0 2px 4px rgba(26,27,24,.04),0 8px 24px rgba(26,27,24,.05)}
+  h1{font-family:ui-serif,Georgia,serif;font-weight:500;font-size:24px;margin:0 0 10px}
+  p{color:#6E6F68;margin:0 0 18px}
+  pre{background:#F2F1EC;border-radius:9px;padding:14px 16px;font-size:13px;overflow:auto;margin:0 0 18px}
+  a{color:#3D5A4C}
+  code{background:#F2F1EC;border-radius:4px;padding:1px 5px;font-size:13px}
+</style>
+</head>
+<body>
+  <div class="c">
+    <h1>CoachDesk needs its server</h1>
+    <p>This file is just a signpost. The app now runs from a small Node server so your data
+       syncs across devices — opening it straight from disk won't work.</p>
+    <pre>npm install
+cp .env.example .env
+npm start</pre>
+    <p>Then open <a href="http://localhost:3000">localhost:3000</a>.</p>
+    <p style="margin:0;font-size:13.5px">Full setup notes are in <code>README.md</code>.</p>
+  </div>
+</body>
+</html>
