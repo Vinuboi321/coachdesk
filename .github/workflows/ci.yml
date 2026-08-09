@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 22 for the built-in node:sqlite module — nothing to compile.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci --omit=optional || npm install --omit=optional
+
+      - name: Parser tests
+        run: npm run test:parser
+
+      - name: Server and sync tests
+        run: npm run test:sync
+
+      # The suites exercise the app in-process; this proves it also boots
+      # as a real server and serves the frontend.
+      - name: Boot smoke test
+        env:
+          SESSION_SECRET: ci-secret
+          PORT: "3123"
+          DATABASE_FILE: ./data/ci.db
+          PUBLIC_DEMO: "true"
+        run: |
+          node server/index.js &
+          PID=$!
+          for i in $(seq 1 20); do
+            sleep 0.5
+            curl -sf "http://127.0.0.1:3123/api/health" >/dev/null && break
+          done
+          echo "health:  $(curl -s http://127.0.0.1:3123/api/health)"
+          curl -sf http://127.0.0.1:3123/          -o /dev/null || { echo "index failed"; kill $PID; exit 1; }
+          curl -sf http://127.0.0.1:3123/app.js    -o /dev/null || { echo "app.js failed"; kill $PID; exit 1; }
+          curl -sf -X POST http://127.0.0.1:3123/api/auth/demo -o /dev/null \
+            || { echo "demo login failed"; kill $PID; exit 1; }
+          echo "boot smoke test passed"
+          kill $PID
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t coachdesk:ci .
