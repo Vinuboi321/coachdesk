@@ -3,6 +3,3 @@ data/
 .env
 *.log
 .DS_Store
-
-# One-time repo bootstrap — not part of the project
-setup-repo.ps1

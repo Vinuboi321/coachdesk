@@ -1,10 +1,10 @@
-<!-- Replace YOUR-USERNAME throughout, and the demo link below, once deployed. -->
+<!-- TODO once deployed: update the demo link below, and add docs/demo.gif -->
 
 # CoachDesk
 
 **Say it, don't type it.** A coach speaks a sentence — *"I have a client Jacob Smith for tennis, he's 19, his number is 469-312-4412"* — and it becomes a client record, a calendar entry, or a session note. Works offline, syncs across devices, and never writes anything without showing you first.
 
-[![CI](https://github.com/YOUR-USERNAME/coachdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/coachdesk/actions/workflows/ci.yml)
+[![CI](https://github.com/Vinuboi321/coachdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/Vinuboi321/coachdesk/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-104%20passing-3D5A4C)
 ![Node](https://img.shields.io/badge/node-22%2B-3D5A4C)
 ![Dependencies](https://img.shields.io/badge/frontend%20dependencies-0-3D5A4C)
