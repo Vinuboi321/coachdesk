@@ -29,6 +29,10 @@ jobs:
       - name: Server and sync tests
         run: npm run test:sync
 
+      # Covers the build that's publicly deployed to Pages.
+      - name: Static build tests
+        run: npm run test:static
+
       # The suites exercise the app in-process; this proves it also boots
       # as a real server and serves the frontend.
       - name: Boot smoke test

@@ -23,7 +23,7 @@
    * @param {() => string} uid  id generator supplied by the caller
    */
   function buildSeed(uid) {
-    const id = { maya: uid(), jacob: uid(), daniel: uid(), amara: uid(), leo: uid(), priya: uid() };
+    const id = { maya: uid(), sam: uid(), daniel: uid(), amara: uid(), leo: uid(), priya: uid() };
 
     const clients = [
       { id: id.maya, name: "Maya Chen", phone: "555-0142", email: "maya.chen@example.com",
@@ -34,7 +34,7 @@
           { id: uid(), at: at(-9, 17), text: "First session back after the wrist strain. Kept it light, no overheads." }
         ], created: at(-120, 9) },
 
-      { id: id.jacob, name: "Sam Rivera", phone: "555-0119", email: "",
+      { id: id.sam, name: "Sam Rivera", phone: "555-0119", email: "",
         tags: ["tennis", "intermediate"], isMinor: false, guardian: null, consent: null,
         fields: { Age: "19", Level: "Intermediate", Goal: "Break into the college club team" },
         notes: [{ id: uid(), at: at(-4, 16), text: "Serve toss goes to pieces when he's tired. Worth filming next week." }],
@@ -71,13 +71,13 @@
 
     const events = [
       { id: uid(), title: "Lesson",   clientId: id.maya,   start: at(0, 16),     durationMin: 60, location: "Court 3", notes: "" },
-      { id: uid(), title: "Lesson",   clientId: id.jacob,  start: at(0, 17, 30), durationMin: 60, location: "Court 1", notes: "" },
+      { id: uid(), title: "Lesson",   clientId: id.sam,  start: at(0, 17, 30), durationMin: 60, location: "Court 1", notes: "" },
       { id: uid(), title: "Session",  clientId: id.daniel, start: at(1, 10),     durationMin: 45, location: "Zoom",    notes: "Prep for the board update" },
       { id: uid(), title: "Lesson",   clientId: id.leo,    start: at(1, 7),      durationMin: 90, location: "Lane 4",  notes: "" },
       { id: uid(), title: "Lesson",   clientId: id.priya,  start: at(2, 18),     durationMin: 30, location: "Pool",    notes: "" },
       { id: uid(), title: "Practice", clientId: id.amara,  start: at(3, 16),     durationMin: 60, location: "Track",   notes: "" },
       { id: uid(), title: "Lesson",   clientId: id.maya,   start: at(4, 16),     durationMin: 60, location: "Court 3", notes: "" },
-      { id: uid(), title: "Lesson",   clientId: id.jacob,  start: at(7, 17, 30), durationMin: 60, location: "Court 1", notes: "" },
+      { id: uid(), title: "Lesson",   clientId: id.sam,  start: at(7, 17, 30), durationMin: 60, location: "Court 1", notes: "" },
       // A little history so the calendar isn't only forward-looking.
       { id: uid(), title: "Lesson",   clientId: id.maya,   start: at(-2, 16),    durationMin: 60, location: "Court 3", notes: "" },
       { id: uid(), title: "Lesson",   clientId: id.leo,    start: at(-3, 7),     durationMin: 90, location: "Lane 4",  notes: "" },

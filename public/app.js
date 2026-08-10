@@ -258,8 +258,8 @@ function matchClients(query){
 }
 
 /* ---------- 5. VOCABULARY + ENTITY EXTRACTION -------------------------
-   People don't speak in field order. "I have a client Jacob Smith for
-   tennis, he's 19, his number is 469-312-4412" carries the same five
+   People don't speak in field order. "I have a client Nadia Haddad for
+   tennis, she's 27, her number is 555-018-8100" carries the same five
    facts as any other phrasing, just scattered.
 
    So rather than matching a sentence shape, we pull each entity out from
@@ -390,8 +390,8 @@ function extractName(text){
 
 /**
  * Pick the most plausible client name from several candidate strings.
- * "Book Jacob for a lesson" puts the name before "for"; "book a lesson
- * for Jacob" puts it after. Rather than guess the grammar, try both and
+ * "Book Nadia for a lesson" puts the name before "for"; "book a lesson
+ * for Nadia" puts it after. Rather than guess the grammar, try both and
  * prefer whichever actually matches somebody on the books.
  */
 function bestClientQuery(candidates){
@@ -680,19 +680,34 @@ function showConfirm(p){
   if (!p){ slot.innerHTML=""; return; }
 
   if (p.intent === "unknown"){
+    const heardSomething = !!(p.raw || "").trim();
     slot.innerHTML = `<div class="confirm">
-      <div class="kicker">Not quite</div>
-      <div class="heard">${esc(p.raw)}</div>
-      <div class="sm muted" style="margin-bottom:12px">Say it however you like — these are just the kinds of thing it handles.</div>
-      <div style="margin:-3px 0 14px">
-        ${["I have a new client Sam Rivera for swimming, he's 24, 555-010-1234",
-           "Schedule a lesson with Sam tomorrow at half past four",
-           "Note for Sam: great progress on his turns today",
+      <div class="kicker">Couldn't understand that</div>
+      ${heardSomething ? `<div class="heard">${esc(p.raw)}</div>` : ""}
+      <div class="sm muted" style="margin-bottom:16px">
+        ${heardSomething
+          ? "Not sure what you meant by that. Try saying it again, a bit slower."
+          : "Didn't hear anything. Have another go."}
+      </div>
+      <div class="row" style="gap:9px">
+        <button class="btn" id="uRetry">Try again</button>
+        <button class="btn quiet" id="uExamples">Show examples</button>
+        <button class="btn quiet" onclick="dismissConfirm()">Dismiss</button>
+      </div>
+      <div id="uSamples" class="hidden" style="margin-top:14px">
+        <div class="xs faint" style="margin-bottom:6px">Tap one to try it:</div>
+        ${["I have a new client Nadia Haddad for golf, she's 27, 555-018-8100",
+           "Schedule a lesson with Maya tomorrow at half past four",
+           "Note for Maya: great progress on her serve today",
            "Add certification Level 2 Instructor"]
           .map(s=>`<span class="sample" onclick="tryExample(this.textContent)">${esc(s)}</span>`).join("")}
       </div>
-      <button class="btn ghost s" onclick="dismissConfirm()">Dismiss</button>
     </div>`;
+    $("#uRetry").onclick = retryVoice;
+    $("#uExamples").onclick = e => {
+      $("#uSamples").classList.toggle("hidden");
+      e.target.textContent = $("#uSamples").classList.contains("hidden") ? "Show examples" : "Hide examples";
+    };
     return;
   }
 
@@ -797,19 +812,34 @@ function showConfirm(p){
   slot.innerHTML = `<div class="confirm">
     <div class="kicker">${titles[p.intent]||"Confirm"}${p.fromAI?' <span class="faint" style="font-weight:500;letter-spacing:0;text-transform:none">· interpreted by AI</span>':""}</div>
     <div class="heard">${esc(p.raw)}</div>
+    <div class="suggest">This is what it made of that. Change anything that's off, or say it again.</div>
     ${notice?`<div class="notice${noticeBad?" bad":""}">${notice}</div>`:""}
     ${body}
     <div class="row" style="gap:9px;margin-top:6px">
       <button class="btn ${destructive?"danger":""}" id="pfOk">${destructive?"Cancel event":"Save"}</button>
+      <button class="btn quiet" id="pfRetry">Say it again</button>
       <button class="btn quiet" onclick="dismissConfirm()">Discard</button>
     </div>
   </div>`;
+  $("#pfRetry").onclick = retryVoice;
   $("#pfOk").onclick = commitPending;
   const f = slot.querySelector("input,select,textarea"); if (f) f.focus();
 }
 
 function dismissConfirm(){ pending=null; $("#confirmSlot").innerHTML=""; }
 function tryExample(text){ $("#cmd").value = text; submitCommand(text); }
+
+/** Clear the failed attempt and reopen the mic straight away. */
+function retryVoice(){
+  dismissConfirm();
+  const input = $("#cmd");
+  input.value = "";
+  micPrefix = "";
+  if (recog && !listening){
+    try { recog.start(); return; } catch(e){ /* fall through to typing */ }
+  }
+  input.focus();
+}
 
 /* ---------- 7b. STRAIGHT INTO SCHEDULING ------------------------------
    A coach who has just added someone almost always wants to book them in
@@ -927,7 +957,7 @@ function commitPending(){
    decks defeat speech recognition routinely.
 --------------------------------------------------------------------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const HINT = "Try “I have a new client Jacob Smith, tennis, he's 19, 469-312-4412”";
+const HINT = "Try “I have a new client Nadia Haddad, golf, she's 27, 555-018-8100”";
 let recog=null, listening=false;
 // Text already in the box when the mic opens — speech is appended to it,
 // so a pre-filled client name survives dictation.
@@ -1105,7 +1135,7 @@ const emptyClients = () => clients().length ? `
   : `<div class="empty"><div class="icon">${ICON.users}</div>
     <h3>Let's add your first client</h3>
     <p>Tap the microphone and just say it — no particular order, no keywords to remember.</p>
-    <span class="sample" onclick="tryExample(&quot;I have a client Jacob Smith for tennis, he's 19, his number is 469-312-4412&quot;)">I have a client Jacob Smith for tennis, he's 19, his number is 469-312-4412</span>
+    <span class="sample" onclick="tryExample(&quot;I have a client Nadia Haddad for golf, she's 27, her number is 555-018-8100&quot;)">I have a client Nadia Haddad for golf, she's 27, her number is 555-018-8100</span>
   </div>`;
 
 function openClient(id){
@@ -2109,4 +2139,4 @@ async function bootStatic(){
 Object.assign(window, { openClient, openClientEditor, addNoteTo, closeSheet, dismissConfirm,
   tryExample, moveMonth, goToday, selectDay, openEventEditor, googlePanel, preview, copyDoc,
   editExp, editCert, editTest, delSpec, exportJSON, exportClient, accountPanel, syncNow,
-  parseCommand, goTab, startScheduling, bootStatic });
+  parseCommand, goTab, startScheduling, bootStatic, retryVoice });

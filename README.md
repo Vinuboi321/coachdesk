@@ -6,7 +6,7 @@ Voice-driven client and scheduling manager for coaches. Speak a sentence, confir
 
 [![CI](https://github.com/Vinuboi321/coachdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/Vinuboi321/coachdesk/actions/workflows/ci.yml)
 [![Pages](https://github.com/Vinuboi321/coachdesk/actions/workflows/pages.yml/badge.svg)](https://github.com/Vinuboi321/coachdesk/actions/workflows/pages.yml)
-![Tests](https://img.shields.io/badge/tests-104%20passing-3D5A4C)
+![Tests](https://img.shields.io/badge/tests-129%20passing-3D5A4C)
 ![Node](https://img.shields.io/badge/node-22%2B-3D5A4C)
 ![Dependencies](https://img.shields.io/badge/frontend%20dependencies-0-3D5A4C)
 
@@ -78,7 +78,7 @@ Voice-driven client and scheduling manager for coaches. Speak a sentence, confir
 | Database | SQLite (`node:sqlite`) |
 | Frontend | Vanilla JS, ~1,600 lines, zero dependencies, no build step |
 | Styling | CSS custom properties, light and dark |
-| Tests | 104, no framework |
+| Tests | 129, no framework |
 | CI/CD | GitHub Actions → Pages |
 
 ---
@@ -94,9 +94,10 @@ npm start
 Open <http://localhost:3000>. Requires Node 22.5+.
 
 ```bash
-npm test               # 104 checks
+npm test               # 129 checks
 npm run test:parser    #  36 — phrasings, dates, times, ambiguity
 npm run test:sync      #  68 — auth, sync conflicts, deletes, throttling
+npm run test:static    #  25 — the deployed browser build, in a real DOM
 npm run build:static   # browser-only bundle → dist/
 ```
 
@@ -126,6 +127,7 @@ scripts/
 test/
   parser.test.js    runs against the shipped bundle
   sync.test.js      drives the real server as two devices
+  static.test.js    loads the deployed build in a real DOM
 ```
 
 ---
