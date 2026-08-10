@@ -36,8 +36,8 @@ Voice-driven client and scheduling manager for coaches. Speak a sentence, confir
 - Entity-extraction parser: pulls phone, email, age and activity from anywhere in the sentence, then resolves the name from the remainder
 - Word order is irrelevant. These are equivalent:
   ```
-  new client Priya Nair, she does swimming, she's 24, 555-010-1234
-  I've got a new student Priya Nair for swimming, 24, 555-010-1234
+  new client Anna Foster, she does swimming, she's 24, 555-010-1234
+  I've got a new student Anna Foster for swimming, 24, 555-010-1234
   ```
 - Handles relative dates (`tomorrow`, `next Tuesday`), spoken times (`half past four`, `3 in the afternoon`), and durations (`for an hour and a half`)
 - Every command routes through an editable confirmation card. Nothing writes to storage unconfirmed

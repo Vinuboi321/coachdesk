@@ -101,18 +101,18 @@ const ok = (label, cond) => { assert.ok(cond, "FAILED: " + label); console.log("
   /* ---- A creates data ---- */
   const t0 = Date.now();
   r = await A.call("/api/sync", { since: 0, push: {
-    clients: [{ id: "c1", name: "Maya Chen", tags: ["tennis"], notes: [], updated_at: iso(t0) }],
+    clients: [{ id: "c1", name: "Emma Clark", tags: ["tennis"], notes: [], updated_at: iso(t0) }],
     events:  [{ id: "e1", title: "Lesson", clientId: "c1", start: iso(t0 + 864e5), durationMin: 60, updated_at: iso(t0) }],
-    profile: { name: "Alex Rivera", title: "Tennis Coach", updated_at: iso(t0) }
+    profile: { name: "Alex Carter", title: "Tennis Coach", updated_at: iso(t0) }
   }});
   ok("A pushes three records", r.body.applied === 3);
   const cursorA1 = r.body.cursor;
 
   /* ---- B pulls them ---- */
   r = await B.call("/api/sync", { since: 0, push: {} });
-  ok("B receives the client", r.body.pull.clients.length === 1 && r.body.pull.clients[0].name === "Maya Chen");
+  ok("B receives the client", r.body.pull.clients.length === 1 && r.body.pull.clients[0].name === "Emma Clark");
   ok("B receives the event", r.body.pull.events.length === 1);
-  ok("B receives the profile", r.body.pull.profile && r.body.pull.profile.name === "Alex Rivera");
+  ok("B receives the profile", r.body.pull.profile && r.body.pull.profile.name === "Alex Carter");
   const cursorB1 = r.body.cursor;
 
   r = await B.call("/api/sync", { since: cursorB1, push: {} });
@@ -120,19 +120,19 @@ const ok = (label, cond) => { assert.ok(cond, "FAILED: " + label); console.log("
 
   /* ---- conflict ---- */
   await A.call("/api/sync", { since: cursorA1, push: {
-    clients: [{ id: "c1", name: "Maya Chen-Alvarez", tags: ["tennis"], notes: [], updated_at: iso(t0 + 5000) }] }});
+    clients: [{ id: "c1", name: "Emma Clark-Reid", tags: ["tennis"], notes: [], updated_at: iso(t0 + 5000) }] }});
   r = await B.call("/api/sync", { since: cursorB1, push: {
     clients: [{ id: "c1", name: "STALE NAME", tags: [], notes: [], updated_at: iso(t0 + 1000) }] }});
   ok("an older write is rejected as stale", r.body.stale === 1 && r.body.applied === 0);
   ok("the losing device is corrected in the same response",
-     r.body.pull.clients.length === 1 && r.body.pull.clients[0].name === "Maya Chen-Alvarez");
+     r.body.pull.clients.length === 1 && r.body.pull.clients[0].name === "Emma Clark-Reid");
 
   r = await B.call("/api/sync", { since: r.body.cursor, push: {
-    clients: [{ id: "c1", name: "Maya Alvarez", tags: ["tennis"], notes: [], updated_at: iso(t0 + 9000) }] }});
+    clients: [{ id: "c1", name: "Emma Reid", tags: ["tennis"], notes: [], updated_at: iso(t0 + 9000) }] }});
   ok("a newer write is applied", r.body.applied === 1);
 
   r = await A.call("/api/sync", { since: cursorA1, push: {} });
-  ok("A converges on the newer name", r.body.pull.clients.some(c => c.name === "Maya Alvarez"));
+  ok("A converges on the newer name", r.body.pull.clients.some(c => c.name === "Emma Reid"));
 
   /* ---- deletes ---- */
   await A.call("/api/sync", { since: r.body.cursor, push: {
@@ -152,7 +152,7 @@ const ok = (label, cond) => { assert.ok(cond, "FAILED: " + label); console.log("
   /* ---- snapshot ---- */
   r = await B.call("/api/snapshot");
   ok("the snapshot omits deleted records", r.body.events.length === 0 && r.body.clients.length === 1);
-  ok("the snapshot carries the profile", r.body.profile.name === "Alex Rivera");
+  ok("the snapshot carries the profile", r.body.profile.name === "Alex Carter");
 
   /* ---- tenant isolation ---- */
   const C = device("other-coach");
@@ -234,7 +234,7 @@ const ok = (label, cond) => { assert.ok(cond, "FAILED: " + label); console.log("
   ok("the new password works", r.status === 200);
 
   r = await G.call("/api/snapshot");
-  ok("data survived the reset intact", r.body.clients.length === 1 && r.body.profile.name === "Alex Rivera");
+  ok("data survived the reset intact", r.body.clients.length === 1 && r.body.profile.name === "Alex Carter");
 
   /* ---- changing the account email ---- */
   const emailLink = () => {

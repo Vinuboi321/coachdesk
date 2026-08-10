@@ -258,8 +258,8 @@ function matchClients(query){
 }
 
 /* ---------- 5. VOCABULARY + ENTITY EXTRACTION -------------------------
-   People don't speak in field order. "I have a client Nadia Haddad for
-   tennis, she's 27, her number is 555-018-8100" carries the same five
+   People don't speak in field order. "I have a client Ryan Cole for tennis,
+   he's 27, his number is 555-018-8100" carries the same five
    facts as any other phrasing, just scattered.
 
    So rather than matching a sentence shape, we pull each entity out from
@@ -390,8 +390,8 @@ function extractName(text){
 
 /**
  * Pick the most plausible client name from several candidate strings.
- * "Book Nadia for a lesson" puts the name before "for"; "book a lesson
- * for Nadia" puts it after. Rather than guess the grammar, try both and
+ * "Book Ryan for a lesson" puts the name before "for"; "book a lesson
+ * for Ryan" puts it after. Rather than guess the grammar, try both and
  * prefer whichever actually matches somebody on the books.
  */
 function bestClientQuery(candidates){
@@ -696,9 +696,9 @@ function showConfirm(p){
       </div>
       <div id="uSamples" class="hidden" style="margin-top:14px">
         <div class="xs faint" style="margin-bottom:6px">Tap one to try it:</div>
-        ${["I have a new client Nadia Haddad for golf, she's 27, 555-018-8100",
-           "Schedule a lesson with Maya tomorrow at half past four",
-           "Note for Maya: great progress on her serve today",
+        ${["I have a new client Ryan Cole for golf, he's 27, 555-018-8100",
+           "Schedule a lesson with Emma tomorrow at half past four",
+           "Note for Emma: great progress on her serve today",
            "Add certification Level 2 Instructor"]
           .map(s=>`<span class="sample" onclick="tryExample(this.textContent)">${esc(s)}</span>`).join("")}
       </div>
@@ -957,7 +957,7 @@ function commitPending(){
    decks defeat speech recognition routinely.
 --------------------------------------------------------------------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const HINT = "Try “I have a new client Nadia Haddad, golf, she's 27, 555-018-8100”";
+const HINT = "Try “I have a new client Ryan Cole, golf, he's 27, 555-018-8100”";
 let recog=null, listening=false;
 // Text already in the box when the mic opens — speech is appended to it,
 // so a pre-filled client name survives dictation.
@@ -1135,7 +1135,7 @@ const emptyClients = () => clients().length ? `
   : `<div class="empty"><div class="icon">${ICON.users}</div>
     <h3>Let's add your first client</h3>
     <p>Tap the microphone and just say it — no particular order, no keywords to remember.</p>
-    <span class="sample" onclick="tryExample(&quot;I have a client Nadia Haddad for golf, she's 27, her number is 555-018-8100&quot;)">I have a client Nadia Haddad for golf, she's 27, her number is 555-018-8100</span>
+    <span class="sample" onclick="tryExample(&quot;I have a client Ryan Cole for golf, he's 27, his number is 555-018-8100&quot;)">I have a client Ryan Cole for golf, he's 27, his number is 555-018-8100</span>
   </div>`;
 
 function openClient(id){
@@ -1755,8 +1755,8 @@ function accountPanel(){
       <div class="sec"><h2>Have a go</h2><div class="rule"></div></div>
       <div class="xs muted" style="line-height:1.8;margin-bottom:14px">
         Tap the microphone and say something like:<br>
-        &ldquo;I've got a new client Nadia Haddad for golf, she's 27, 555-018-8100&rdquo;<br>
-        &ldquo;Book Maya in for Tuesday at half past four&rdquo;
+        &ldquo;I've got a new client Ryan Cole for golf, he's 27, 555-018-8100&rdquo;<br>
+        &ldquo;Book Emma in for Tuesday at half past four&rdquo;
       </div>
       <div class="sec"><h2>Data</h2><div class="rule"></div></div>
       <div class="row wrap" style="gap:9px">

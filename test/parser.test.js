@@ -40,10 +40,10 @@ vm.runInContext(
 const API = sandbox.__api;
 
 API.setClients([
-  { id: "a", name: "Nadia Haddad", notes: [] },
-  { id: "b", name: "Maya Chen", notes: [] },
-  { id: "c", name: "Daniel Ortiz", notes: [] },
-  { id: "d", name: "Danielle Ross", notes: [] }
+  { id: "a", name: "Ryan Cole", notes: [] },
+  { id: "b", name: "Emma Clark", notes: [] },
+  { id: "c", name: "Sam Reed", notes: [] },
+  { id: "d", name: "Samantha Reed", notes: [] }
 ]);
 
 // Fixed reference point so weekday maths is deterministic: a Saturday.
@@ -81,28 +81,28 @@ function check(text, expected) {
 const at = (day, hh, mm) => new Date(2026, 7, day, hh, mm).toISOString().slice(0, 16);
 
 console.log("\n  Creating a client — however it comes out\n");
-check("i have a client nadia haddad for tennis, and she is 19 and her phone number is 469-312-4412",
-  { intent: "add_client", name: "Nadia Haddad", phone: "469-312-4412", age: 19, tags: "tennis" });
-check("I have a client Nadia Haddad for tennis she's 19 her number is 4693124412",
-  { intent: "add_client", name: "Nadia Haddad", age: 19, tags: "tennis" });
-check("add a new client named priya nair, she does swimming, 555-010-1234",
-  { intent: "add_client", name: "Priya Nair", tags: "swimming" });
-check("new client Sam Rivera", { intent: "add_client", name: "Sam Rivera" });
-check("i've got a new student called Danielle Ross who is 14 and plays soccer",
-  { intent: "add_client", name: "Danielle Ross", age: 14, minor: true, tags: "soccer" });
+check("i have a client ryan cole for tennis, and he is 19 and his phone number is 555-014-2200",
+  { intent: "add_client", name: "Ryan Cole", phone: "555-014-2200", age: 19, tags: "tennis" });
+check("I have a client Ryan Cole for tennis he's 19 his number is 5550142200",
+  { intent: "add_client", name: "Ryan Cole", age: 19, tags: "tennis" });
+check("add a new client named anna foster, she does swimming, 555-010-1234",
+  { intent: "add_client", name: "Anna Foster", tags: "swimming" });
+check("new client Jack Miller", { intent: "add_client", name: "Jack Miller" });
+check("i've got a new student called Katie Shaw who is 14 and plays soccer",
+  { intent: "add_client", name: "Katie Shaw", age: 14, minor: true, tags: "soccer" });
 check("set up a client for me, his name is Marcus Bell, golf, marcus@example.com",
   { intent: "add_client", name: "Marcus Bell", email: "marcus@example.com", tags: "golf" });
-check("my new client is Aisha Khan, she's 22, advanced tennis, 469 312 4412",
-  { intent: "add_client", name: "Aisha Khan", age: 22 });
-check("take on a new athlete Leo Park, 16 years old, junior swimming",
-  { intent: "add_client", name: "Leo Park", age: 16, minor: true });
-check("register a client Tom Hardy aged 31 for boxing",
-  { intent: "add_client", name: "Tom Hardy", age: 31, tags: "boxing" });
-check("this is a new client, Elena Rossi, she's a beginner at yoga",
-  { intent: "add_client", name: "Elena Rossi" });
+check("my new client is Sarah Lane, she's 22, advanced tennis, 555 014 2200",
+  { intent: "add_client", name: "Sarah Lane", age: 22 });
+check("take on a new athlete Ben Turner, 16 years old, junior swimming",
+  { intent: "add_client", name: "Ben Turner", age: 16, minor: true });
+check("register a client Mark Hayes aged 31 for boxing",
+  { intent: "add_client", name: "Mark Hayes", age: 31, tags: "boxing" });
+check("this is a new client, Julia Ross, she's a beginner at yoga",
+  { intent: "add_client", name: "Julia Ross" });
 check("add client Ben", { intent: "add_client", name: "Ben" });
-check("i'm working with a new player Chris O'Neill for rugby",
-  { intent: "add_client", name: "Chris O'Neill", tags: "rugby" });
+check("i'm working with a new player Dan O'Brien for rugby",
+  { intent: "add_client", name: "Dan O'Brien", tags: "rugby" });
 
 console.log("\n  Under-18 clients are flagged automatically\n");
 check("new client Amy Wong, 12 years old, gymnastics",
@@ -112,35 +112,35 @@ check("new client Kai Tan who is 17 and does diving",
   { intent: "add_client", age: 17, minor: true });
 
 console.log("\n  Scheduling in natural speech\n");
-check("set up lesson for nadia haddad on tuesday at 4pm",
-  { intent: "add_event", q: "Nadia Haddad", when: at(11, 16, 0) });
-check("schedule a lesson with nadia next monday at 3 in the afternoon",
-  { intent: "add_event", q: "Nadia", when: at(17, 15, 0) });
-check("book nadia haddad for a tennis lesson thursday at half past four",
-  { intent: "add_event", q: "Nadia Haddad", when: at(13, 16, 30) });
-check("lesson with maya tomorrow at noon",
-  { intent: "add_event", q: "Maya", when: at(9, 12, 0) });
-check("schedule a session for nadia friday at 5 for an hour and a half",
-  { intent: "add_event", q: "Nadia", when: at(14, 17, 0), dur: 90 });
-check("put nadia in for a lesson wednesday at 4 for 45 minutes",
-  { intent: "add_event", q: "Nadia", when: at(12, 16, 0), dur: 45 });
-check("book a practice with maya on august 20 at quarter past nine",
-  { intent: "add_event", q: "Maya", when: at(20, 9, 15) });
-check("arrange a meeting with daniel tomorrow at 9 in the morning",
-  { intent: "add_event", q: "Daniel", when: at(9, 9, 0) });
-check("lesson for maya today at 6pm on court 3",
-  { intent: "add_event", q: "Maya", when: at(8, 18, 0) });
-check("training with nadia for half an hour tomorrow at 7am",
-  { intent: "add_event", q: "Nadia", when: at(9, 7, 0), dur: 30 });
-check("schedule a lesson with maya every tuesday at 4pm",
+check("set up lesson for ryan cole on tuesday at 4pm",
+  { intent: "add_event", q: "Ryan Cole", when: at(11, 16, 0) });
+check("schedule a lesson with ryan next monday at 3 in the afternoon",
+  { intent: "add_event", q: "Ryan", when: at(17, 15, 0) });
+check("book ryan cole for a tennis lesson thursday at half past four",
+  { intent: "add_event", q: "Ryan Cole", when: at(13, 16, 30) });
+check("lesson with emma tomorrow at noon",
+  { intent: "add_event", q: "Emma", when: at(9, 12, 0) });
+check("schedule a session for ryan friday at 5 for an hour and a half",
+  { intent: "add_event", q: "Ryan", when: at(14, 17, 0), dur: 90 });
+check("put ryan in for a lesson wednesday at 4 for 45 minutes",
+  { intent: "add_event", q: "Ryan", when: at(12, 16, 0), dur: 45 });
+check("book a practice with emma on august 20 at quarter past nine",
+  { intent: "add_event", q: "Emma", when: at(20, 9, 15) });
+check("arrange a meeting with sam tomorrow at 9 in the morning",
+  { intent: "add_event", q: "Sam", when: at(9, 9, 0) });
+check("lesson for emma today at 6pm on court 3",
+  { intent: "add_event", q: "Emma", when: at(8, 18, 0) });
+check("training with ryan for half an hour tomorrow at 7am",
+  { intent: "add_event", q: "Ryan", when: at(9, 7, 0), dur: 30 });
+check("schedule a lesson with emma every tuesday at 4pm",
   { intent: "add_event", recurring: true });
 
 console.log("\n  Ambiguity is surfaced, not guessed at\n");
 {
-  const r = API.parseCommand("book a session with Daniel tomorrow at 2pm", NOW);
+  const r = API.parseCommand("book a session with Sam tomorrow at 2pm", NOW);
   const hits = API.matchClients(r.clientQuery);
-  if (hits.length === 2) { pass++; console.log("  ok    \"Daniel\" matches both Daniel Ortiz and Danielle Ross"); }
-  else { fail++; console.log(`  FAIL  expected 2 matches for "Daniel", got ${hits.length}`); }
+  if (hits.length === 2) { pass++; console.log("  ok    \"Sam\" matches both Sam Reed and Samantha Reed"); }
+  else { fail++; console.log(`  FAIL  expected 2 matches for "Sam", got ${hits.length}`); }
 }
 {
   const r = API.parseCommand("i have a client for tennis who is 20", NOW);
@@ -149,8 +149,8 @@ console.log("\n  Ambiguity is surfaced, not guessed at\n");
 }
 
 console.log("\n  Other intents still work\n");
-check("note for nadia haddad: worked on her serve today", { intent: "add_note" });
-check("log for maya - great progress on her turns", { intent: "add_note" });
+check("note for ryan cole: worked on his serve today", { intent: "add_note" });
+check("log for emma - great progress on her turns", { intent: "add_note" });
 check("add certification USPTA Level 2", { intent: "add_resume_item" });
 check("add testimonial best coach my daughter has had", { intent: "add_resume_item" });
 check("add experience Head Coach at Riverside Club", { intent: "add_resume_item" });

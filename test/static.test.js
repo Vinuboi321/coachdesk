@@ -68,16 +68,17 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok("upcoming events present", parseInt(text("#bEvents"), 10) > 0);
   ok("client list rendered", w.document.querySelectorAll("#view-clients .card").length >= 6);
   ok("missing-consent warning shown", /no guardian consent recorded/i.test(text("#view-clients")));
-  ok("no placeholder names left over", !/jacob/i.test(w.document.body.innerHTML));
+  ok("no retired placeholder names left over",
+     !/jacob|nadia|haddad|okafor|priya nair|aisha/i.test(w.document.body.innerHTML));
 
   console.log("\n  Parser works offline\n");
-  const r = w.parseCommand("I've got a new client Nadia Haddad for golf, she's 27, 555-018-8100");
-  ok("client parsed", r.intent === "add_client" && r.name === "Nadia Haddad", JSON.stringify(r));
+  const r = w.parseCommand("I've got a new client Ryan Cole for golf, he's 27, 555-018-8100");
+  ok("client parsed", r.intent === "add_client" && r.name === "Ryan Cole", JSON.stringify(r));
   ok("age picked up", r.age === 27);
   ok("activity tagged", (r.tags || []).includes("golf"));
 
   console.log("\n  Understood input is offered, not asserted\n");
-  w.tryExample("book a lesson with Maya tomorrow at half past four");
+  w.tryExample("book a lesson with Emma tomorrow at half past four");
   await wait(200);
   ok("confirmation card shown", /Schedule/i.test(text("#confirmSlot")));
   ok("framed as a suggestion", /what it made of that/i.test(text("#confirmSlot")));
