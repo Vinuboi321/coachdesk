@@ -97,6 +97,24 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     ok("examples revealed on request", !$("#uSamples").classList.contains("hidden"));
   } else { fail++; console.log("  FAIL  examples toggle missing"); }
 
+  /* The dock is fixed to the bottom; if the page reserves a fixed amount
+     of space for it, a tall confirmation card hides the last few cards
+     and they can't be scrolled to. Regression: this shipped once. */
+  console.log("\n  Page reserves room for however tall the dock gets\n");
+  const css = fs.readFileSync(path.join(dist, "index.html"), "utf8");
+  ok("main padding tracks the dock height", /main\{padding-bottom:calc\(var\(--dock-h/.test(css));
+  ok("no hardcoded dock reservation", !/main\{padding-bottom:calc\(190px/.test(css));
+  ok("tall cards scroll internally", /\.confirm\{[^}]*max-height/s.test(css));
+
+  // jsdom reports offsetHeight as 0, so fake a dock height and check the
+  // measurement actually reaches the custom property.
+  const dockEl = $(".dock");
+  Object.defineProperty(dockEl, "offsetHeight", { value: 412, configurable: true });
+  w.measureDock();
+  ok("measured height published as --dock-h",
+     w.document.documentElement.style.getPropertyValue("--dock-h") === "412px",
+     w.document.documentElement.style.getPropertyValue("--dock-h"));
+
   console.log("\n  Views render\n");
   try { w.goTab("calendar"); ok("calendar", /Coming up|Nothing scheduled/.test(text("#view-calendar"))); }
   catch (e) { fail++; console.log("  FAIL  calendar [" + e.message + "]"); }
@@ -104,7 +122,25 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   catch (e) { fail++; console.log("  FAIL  profile [" + e.message + "]"); }
 
   ok("persisted to localStorage", !!w.localStorage.getItem("coachdesk.v2.state"));
+  ok("seed version recorded", !!w.localStorage.getItem("coachdesk.v2.seedVersion"));
   ok("never called fetch", !errors.some(e => /fetch was called/.test(e)));
+
+  /* A returning visitor whose stored data predates a seed change must get
+     the new sample data, not be stuck with the old forever. This is a real
+     bug that shipped once. */
+  console.log("\n  Stale demo data is replaced when the seed changes\n");
+  const stale = JSON.parse(w.localStorage.getItem("coachdesk.v2.state"));
+  stale.clients[0].name = "Someone From The Old Seed";
+  w.localStorage.setItem("coachdesk.v2.state", JSON.stringify(stale));
+  w.localStorage.setItem("coachdesk.v2.seedVersion", "1");   // pretend an older build
+
+  await w.bootStatic();
+  await wait(100);
+  const after = JSON.parse(w.localStorage.getItem("coachdesk.v2.state"));
+  ok("old sample data cleared", !after.clients.some(c => c.name === "Someone From The Old Seed"));
+  ok("current seed applied", after.clients.some(c => c.name === "Emma Clark"));
+  ok("version bumped to current",
+     w.localStorage.getItem("coachdesk.v2.seedVersion") === String(w.CoachDeskSeed.VERSION));
 
   console.log(`\n  ${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);

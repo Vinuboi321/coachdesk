@@ -112,5 +112,9 @@
     return { clients: clients, events: events, profile: profile };
   }
 
-  return { buildSeed: buildSeed, at: at };
+  // Bump whenever the seed changes. The static demo compares this against
+  // what's in localStorage and re-seeds when it differs - otherwise a
+  // returning visitor keeps whatever they were given the first time,
+  // forever, and edits to this file never reach them.
+  return { buildSeed: buildSeed, at: at, VERSION: 2 };
 });

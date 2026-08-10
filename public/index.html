@@ -192,7 +192,11 @@ nav.tabs .badge{
 }
 nav.tabs button[aria-selected=true] .badge{background:var(--accent-soft);color:var(--accent-ink)}
 
-main{padding-bottom:calc(190px + env(safe-area-inset-bottom))}
+/* The dock is fixed to the bottom and its height changes a lot - a
+   confirmation card is far taller than the bare input. --dock-h is
+   measured in JS so the page always reserves the right amount and the
+   last card is never trapped underneath. 190px is the no-JS fallback. */
+main{padding-bottom:calc(var(--dock-h, 190px) + 28px)}
 section.view{display:none;animation:fade .28s var(--ease)}
 section.view.active{display:block}
 @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
@@ -306,6 +310,9 @@ section.view.active{display:block}
   background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);
   box-shadow:var(--sh-3);padding:18px;margin-bottom:11px;
   animation:rise .3s var(--ease);border-top:2px solid var(--accent);
+  /* A long card (scheduling, or a minor needing guardian details) would
+     otherwise grow off the top of the screen and strand its own buttons. */
+  max-height:calc(100dvh - 190px);overflow-y:auto;overscroll-behavior:contain;
 }
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .confirm .kicker{font-size:11px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:8px}
@@ -324,7 +331,7 @@ section.view.active{display:block}
 .notice strong{color:var(--ink);font-weight:600}
 
 .toast{
-  position:fixed;left:50%;bottom:calc(200px + env(safe-area-inset-bottom));
+  position:fixed;left:50%;bottom:calc(var(--dock-h, 190px) + 18px);
   transform:translateX(-50%) translateY(8px);
   background:var(--ink);color:var(--paper);padding:11px 19px;border-radius:24px;
   font-size:13.5px;font-weight:550;z-index:90;box-shadow:var(--sh-3);

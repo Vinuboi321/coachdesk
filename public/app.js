@@ -56,6 +56,7 @@ function restore(){
 }
 function clearLocal(){
   LS.del(K.state); LS.del(K.cursor); LS.del(K.dirty);
+  LS.del("coachdesk.v2.seedVersion");   // so the demo re-seeds on next boot
   S = blankState(); cursor = 0; dirty = new Set();
 }
 
@@ -1031,6 +1032,36 @@ async function submitCommand(text){
   } catch(e){
     showConfirm(local);      // offline or signed out — the rules card still helps
   }
+}
+
+/* ---------- DOCK CLEARANCE -------------------------------------------
+   The voice dock is fixed to the bottom and its height swings from about
+   120px (just the input) to several hundred (a confirmation card with
+   guardian fields). A hardcoded padding-bottom on <main> meant the last
+   card was cut off and unreachable whenever the dock grew.
+
+   So measure it and publish the value as --dock-h. A ResizeObserver
+   catches every cause at once: cards opening and closing, text wrapping,
+   the window resizing, the on-screen keyboard appearing.
+--------------------------------------------------------------------- */
+function measureDock(){
+  const dock = $(".dock");
+  if (!dock) return;
+  const h = dock.offsetHeight;
+  if (h > 0) document.documentElement.style.setProperty("--dock-h", h + "px");
+}
+
+function watchDock(){
+  const dock = $(".dock");
+  if (!dock) return;
+  measureDock();
+  if (typeof ResizeObserver === "function"){
+    new ResizeObserver(measureDock).observe(dock);
+  } else {
+    window.addEventListener("resize", measureDock);   // older browsers
+    setInterval(measureDock, 1000);
+  }
+  window.addEventListener("orientationchange", () => setTimeout(measureDock, 150));
 }
 
 function showThinking(text){
@@ -2062,6 +2093,7 @@ async function enterApp({ fresh } = {}){
   showBanner();
   restore();
   render();
+  watchDock();
   // A device signing in fresh takes the server's world; a returning one
   // keeps its local copy and reconciles with a delta sync.
   if (fresh && !dirty.size) await pullSnapshot();
@@ -2090,18 +2122,29 @@ function goTab(name){
 $$("nav.tabs button").forEach(b => b.onclick = () => goTab(b.dataset.tab));
 $("#btnAccount").onclick = accountPanel;
 
+const SEED_KEY = "coachdesk.v2.seedVersion";
+
 /** Browser-only build: no sign-in, straight into a populated workspace. */
 async function bootStatic(){
   me = { id:"local", email:"you@thisdevice" };
   restore();
-  // Seed once. After that it's the visitor's own workspace and we leave
-  // their edits alone across reloads.
-  if (!S.clients.length && !S.events.length && typeof CoachDeskSeed !== "undefined"){
+
+  const haveSeed = typeof CoachDeskSeed !== "undefined";
+  const currentVersion = haveSeed ? String(CoachDeskSeed.VERSION || 1) : "0";
+  const storedVersion = LS.get(SEED_KEY);
+  const empty = !S.clients.length && !S.events.length;
+
+  // Re-seed when there's nothing here, or when the sample data itself has
+  // changed since this visitor last loaded the page. Without the version
+  // check a returning visitor would be stuck with whatever they were given
+  // the first time, and edits to seed.js would never reach them.
+  if (haveSeed && (empty || storedVersion !== currentVersion)){
     const seed = CoachDeskSeed.buildSeed(uid);
     const stamp = nowIso();
     S.clients = seed.clients.map(c => Object.assign(c, { updated_at:stamp, deleted:false }));
     S.events  = seed.events.map(e  => Object.assign(e, { updated_at:stamp, deleted:false }));
     S.profile = Object.assign(blankProfile(), seed.profile, { updated_at:stamp });
+    LS.set(SEED_KEY, currentVersion);
     persist();
   }
   $("#gate").classList.add("hidden");
@@ -2109,6 +2152,7 @@ async function bootStatic(){
   showBanner();
   setSyncState("ok");
   render();
+  watchDock();
 }
 
 (async function boot(){
@@ -2139,4 +2183,4 @@ async function bootStatic(){
 Object.assign(window, { openClient, openClientEditor, addNoteTo, closeSheet, dismissConfirm,
   tryExample, moveMonth, goToday, selectDay, openEventEditor, googlePanel, preview, copyDoc,
   editExp, editCert, editTest, delSpec, exportJSON, exportClient, accountPanel, syncNow,
-  parseCommand, goTab, startScheduling, bootStatic, retryVoice });
+  parseCommand, goTab, startScheduling, bootStatic, retryVoice, measureDock });
