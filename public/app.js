@@ -91,7 +91,29 @@ function scheduleSync(delay = 1200){
   syncTimer = setTimeout(() => syncNow(), delay);
 }
 
+/* ---------- STATIC MODE ----------------------------------------------
+   The GitHub Pages build sets window.COACHDESK_STATIC. There's no server
+   behind it, so the whole sync and auth layer is short-circuited and
+   everything lives in this browser's localStorage.
+
+   The app is genuinely usable this way — it was local-first to begin
+   with. What's missing is only the things that need a backend, and those
+   say so plainly rather than presenting buttons that quietly do nothing.
+--------------------------------------------------------------------- */
+const STATIC = typeof window !== "undefined" && window.COACHDESK_STATIC === true;
+
+/** Canned responses so nothing downstream has to know the server is absent. */
+function staticApi(path){
+  if (path === "/api/auth/me")      return { user:{ id:"local", email:"you@thisdevice" }, demo:false, ephemeral:false, static:true };
+  if (path === "/api/sync")         return { cursor:0, pull:{}, applied:0, stale:0, invalid:0 };
+  if (path === "/api/snapshot")     return { clients:S.clients, events:S.events, profile:S.profile, cursor:0 };
+  if (path === "/api/google/status")return { configured:false, connected:false, email:null, lastSyncAt:null };
+  if (path.startsWith("/api/parse"))return { intent:"unknown", source:"not_configured" };
+  return { ok:true };
+}
+
 async function api(path, opts = {}){
+  if (STATIC) return staticApi(path);
   const r = await fetch(path, Object.assign({
     headers: { "Content-Type":"application/json" },
     credentials: "same-origin"
@@ -102,6 +124,7 @@ async function api(path, opts = {}){
 }
 
 async function syncNow(){
+  if (STATIC){ setSyncState("ok"); return; }   // nothing to sync to
   if (!me || syncing) return;
   syncing = true;
   setSyncState("busy");
@@ -1443,6 +1466,7 @@ let gStatus = null;
 
 async function refreshGoogleLine(){
   const line = $("#gStatusLine"); if (!line) return;
+  if (STATIC){ line.textContent = "Needs the server, not in this demo"; return; }
   try {
     gStatus = await api("/api/google/status");
     line.textContent = !gStatus.configured ? "Not set up on this server"
@@ -1452,6 +1476,19 @@ async function refreshGoogleLine(){
 }
 
 function googlePanel(){
+  if (STATIC){
+    openSheet("Google Calendar", `
+      <div class="notice" style="margin-bottom:14px">Not available in the browser demo.</div>
+      <div class="sm muted" style="line-height:1.75">
+        Calendar sync needs a server: Google's OAuth flow requires somewhere to keep
+        the client secret and refresh tokens, and a static page has neither.
+        <br><br>
+        It's built and working in the full version, two-way, with CoachDesk winning
+        on conflict. Run the project locally and it's in <code>server/google.js</code>.
+      </div>
+      <div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeSheet()">Fair enough</button></div>`);
+    return;
+  }
   const s = gStatus || { configured:false, connected:false };
   let body;
   if (!s.configured){
@@ -1674,6 +1711,40 @@ function copyDoc(){
 /* ---------- 14. ACCOUNT ------------------------------------------------ */
 function accountPanel(){
   const counts = `${clients().length} clients · ${events().length} events · ${clients().reduce((n,c)=>n+(c.notes||[]).length,0)} notes`;
+
+  // No server, so most of this panel would be lying. Show what's true.
+  if (STATIC){
+    openSheet("About this demo", `
+      <div class="notice" style="margin-bottom:16px">
+        You're running the browser-only build. Everything works and saves to this
+        device, but there's no server behind it, so accounts, multi-device sync and
+        Google Calendar aren't part of this demo.
+      </div>
+      <div class="kv"><div class="k">Your data</div><div class="grow">${counts}</div></div>
+      <div class="kv"><div class="k">Stored</div><div class="grow">In this browser only</div></div>
+      <div class="sec"><h2>Have a go</h2><div class="rule"></div></div>
+      <div class="xs muted" style="line-height:1.8;margin-bottom:14px">
+        Tap the microphone and say something like:<br>
+        &ldquo;I've got a new client Nadia Haddad for golf, she's 27, 555-018-8100&rdquo;<br>
+        &ldquo;Book Maya in for Tuesday at half past four&rdquo;
+      </div>
+      <div class="sec"><h2>Data</h2><div class="rule"></div></div>
+      <div class="row wrap" style="gap:9px">
+        <button class="btn ghost" onclick="exportJSON()">Export JSON</button>
+        <button class="btn ghost" id="aReset">Reset the demo</button>
+      </div>
+      <div class="xs faint" style="margin-top:14px;line-height:1.7">
+        Reset wipes your changes and puts the sample coach back.
+      </div>`,
+      m => {
+        m.querySelector("#aReset").onclick = () => {
+          if (!confirm("Wipe your changes and restore the sample data?")) return;
+          clearLocal(); closeSheet(); bootStatic(); toast("Demo reset");
+        };
+      });
+    return;
+  }
+
   const sync = { idle:"Waiting to sync", busy:"Syncing…", ok:"All changes saved",
                  offline:"Offline — saved on this device", error:"Sync problem" }[syncState] || "—";
   openSheet("Account", `
@@ -1810,7 +1881,12 @@ function applyFlags(f){
 function showBanner(){
   const b = $("#banner");
   const bits = [];
-  if (inDemo) bits.push("<strong>Demo workspace.</strong> Edit anything you like — it resets next time someone opens the demo.");
+  if (STATIC) bits.push(
+    "<strong>Browser demo.</strong> Everything here runs locally and saves to this device only. " +
+    "Multi-device sync, accounts and Google Calendar need the server " +
+    "&mdash; <a href=\"https://github.com/Vinuboi321/coachdesk\">the code's on GitHub</a>."
+  );
+  else if (inDemo) bits.push("<strong>Demo workspace.</strong> Edit anything you like, it resets next time someone opens the demo.");
   else if (serverFlags.ephemeral) bits.push("<strong>Demo instance.</strong> Accounts and data reset when the server restarts.");
   b.innerHTML = bits.join(" ");
   b.classList.toggle("hidden", !bits.length);
@@ -1984,9 +2060,32 @@ function goTab(name){
 $$("nav.tabs button").forEach(b => b.onclick = () => goTab(b.dataset.tab));
 $("#btnAccount").onclick = accountPanel;
 
+/** Browser-only build: no sign-in, straight into a populated workspace. */
+async function bootStatic(){
+  me = { id:"local", email:"you@thisdevice" };
+  restore();
+  // Seed once. After that it's the visitor's own workspace and we leave
+  // their edits alone across reloads.
+  if (!S.clients.length && !S.events.length && typeof CoachDeskSeed !== "undefined"){
+    const seed = CoachDeskSeed.buildSeed(uid);
+    const stamp = nowIso();
+    S.clients = seed.clients.map(c => Object.assign(c, { updated_at:stamp, deleted:false }));
+    S.events  = seed.events.map(e  => Object.assign(e, { updated_at:stamp, deleted:false }));
+    S.profile = Object.assign(blankProfile(), seed.profile, { updated_at:stamp });
+    persist();
+  }
+  $("#gate").classList.add("hidden");
+  $("#app").classList.remove("hidden");
+  showBanner();
+  setSyncState("ok");
+  render();
+}
+
 (async function boot(){
   initGate();
   initVoice();
+
+  if (STATIC){ await bootStatic(); return; }
 
   // A reset link takes priority: someone arriving with one may well have a
   // stale session cookie, and dropping them into the app would be baffling.
@@ -2010,4 +2109,4 @@ $("#btnAccount").onclick = accountPanel;
 Object.assign(window, { openClient, openClientEditor, addNoteTo, closeSheet, dismissConfirm,
   tryExample, moveMonth, goToday, selectDay, openEventEditor, googlePanel, preview, copyDoc,
   editExp, editCert, editTest, delSpec, exportJSON, exportClient, accountPanel, syncNow,
-  parseCommand, goTab, startScheduling });
+  parseCommand, goTab, startScheduling, bootStatic });

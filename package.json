@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "build:static": "node scripts/build-static.js",
     "test": "node test/parser.test.js && node test/sync.test.js",
     "test:parser": "node test/parser.test.js",
     "test:sync": "node test/sync.test.js"

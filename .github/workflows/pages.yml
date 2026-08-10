@@ -1,0 +1,57 @@
+name: Deploy demo to Pages
+
+# The browser-only build. No server, no cold start, nothing to maintain -
+# it just sits there and loads instantly whenever someone clicks the link.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Build static bundle
+        run: node scripts/build-static.js
+
+      # Cheap guard: if the build ever stops flipping the static switch,
+      # the deployed page would sit there trying to reach an API that
+      # isn't here. Better to fail the build than ship that.
+      - name: Check the static flag made it in
+        run: |
+          grep -q "COACHDESK_STATIC = true" dist/index.html
+          test -f dist/app.js
+          test -f dist/seed.js
+          echo "static bundle looks right"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
