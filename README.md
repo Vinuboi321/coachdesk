@@ -1,59 +1,63 @@
-<!-- TODO once deployed: update the demo link below, and add docs/demo.gif -->
+<!-- TODO once deployed: update the demo link, and add docs/demo.gif -->
 
 # CoachDesk
 
-**Say it, don't type it.** A coach speaks a sentence — *"I have a client Jacob Smith for tennis, he's 19, his number is 469-312-4412"* — and it becomes a client record, a calendar entry, or a session note. Works offline, syncs across devices, and never writes anything without showing you first.
+Coaches spend their day on a court or a pool deck, not sat at a laptop. So this one listens instead. You say what happened, it files it: a new client, a lesson on Tuesday, a note about someone's turns.
 
 [![CI](https://github.com/Vinuboi321/coachdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/Vinuboi321/coachdesk/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-104%20passing-3D5A4C)
 ![Node](https://img.shields.io/badge/node-22%2B-3D5A4C)
 ![Dependencies](https://img.shields.io/badge/frontend%20dependencies-0-3D5A4C)
 
-### ▶ [Live demo](https://coachdesk.onrender.com) — click "Try the demo", no signup
+### ▶ [Try it live](https://coachdesk.onrender.com) — there's a demo button, no signup
 
-<!-- TODO: record a 20-second GIF of speaking a client into existence, then
-     scheduling a lesson, and drop it at docs/demo.gif -->
 ![CoachDesk demo](docs/demo.gif)
 
 ---
 
-## The interesting part isn't the voice
+## The voice bit isn't the interesting bit
 
-Speech recognition is twenty lines of Web Speech API. The parts worth reading are underneath.
+That's the part people ask about, and it's about twenty lines of Web Speech API. The browser does the work. Everything underneath was harder, and that's what I'd actually want to talk about.
 
-### Multi-device sync that survives a wrong clock
+### Two devices, one truth
 
-Two devices, both editing offline, both reconnecting. The usual answer is last-write-wins on timestamps — which breaks the moment a phone's clock is five minutes fast, because a timestamp cursor will skip records permanently and silently.
+Picture a coach with a phone at the pool and a laptop at home. Both edited something while offline. Both come back online. Who wins?
 
-So the sync cursor is a **server-issued monotonic sequence number**, not a time. Devices send the last sequence they saw; the server returns everything since. Clock skew can't cause data loss because clocks aren't load-bearing.
+The obvious answer is to compare timestamps and keep the newer one. I built that first, then realised it quietly breaks: phone clocks drift, and a device running five minutes fast will poison a timestamp cursor and skip records permanently. Nobody would ever notice until data went missing.
 
-Conflicts between two edits of the same record still resolve by last-write-wins on the device's logical timestamp — a much smaller blast radius. And when a device loses that race, the winning version comes back **in the same response**, so it self-corrects immediately instead of sitting on a stale value until next sync.
+So the sync cursor isn't a time at all. The server hands out sequence numbers, each device remembers the last one it saw, and asks for everything since. Clocks stop being load-bearing, so clock skew stops being able to lose your work.
 
-Deletes are tombstones, never hard deletes. A device offline during a deletion would otherwise re-upload the record and resurrect it. There's a test for exactly that.
+Conflicts between two edits of the same record still fall back to last-write-wins on the device's own clock, but that's a much smaller thing to get wrong. And when a device loses that race it gets the winning version back in the same response, so it corrects itself on the spot rather than sitting on something stale until the next sync.
 
-### A parser that doesn't care about word order
+Deletes leave tombstones. I learned that one the hard way in testing: delete a lesson on your phone while the laptop is offline, and the laptop cheerfully re-uploads it on reconnect. There's a test for that specific resurrection now.
 
-People don't speak in field order. Rather than matching sentence shapes, it extracts entities from wherever they land — email, then phone, then age, then activity — removes each one, and reads the name from what's left. All three of these produce the same record:
+### It doesn't care how you say it
+
+Nobody speaks in form fields. My first parser expected `Add client <name>, <phone>, <sport>` and it was useless the moment I tried talking to it like a person.
+
+The rewrite works backwards instead. It hunts down the things it can recognise on their own — an email, a phone number, an age, a sport — pulls each one out, and whatever survives that is the name. Word order stops mattering:
 
 ```
-I have a client Jacob Smith for tennis, and he is 19 and his phone number is 469-312-4412
-new client Jacob Smith, 19, tennis, 4693124412
-set up a client for me — his name is Jacob Smith, tennis, he's 19
+new client Priya Nair, she does swimming, she's 24, 555-010-1234
+I've got a new student called Sam Rivera for tennis, 19, 555-014-2200
+take on Nadia Haddad, 555-018-8100, advanced golf
 ```
 
-It handles `"half past four"`, `"3 in the afternoon"`, `"quarter past nine"`, `"for an hour and a half"`, and reads a bare `"at 4"` as 4pm because coaching happens in daylight. Where it has to guess, it says so on the confirmation card rather than guessing quietly.
+It copes with "half past four", "3 in the afternoon", "quarter past nine", "for an hour and a half". A bare "at 4" becomes 4pm, because nobody books a lesson at four in the morning. When it does have to guess it says so on the card instead of guessing behind your back.
 
-An age under 18 automatically opens the guardian and consent fields.
+If someone's under 18 it opens the guardian and consent fields on its own.
 
-### Nothing is written without confirmation
+### Nothing gets saved without you seeing it
 
-Every command lands on an editable card first. Speech mangles names constantly, and the failure mode without this step is silently cancelling a real client's lesson. It costs two seconds and removes a whole category of invisible corruption.
+Every command stops at an editable card first. This isn't caution for its own sake. Speech recognition mangles names constantly, and without that step a misheard word can silently cancel a real client's real lesson. Two seconds of friction buys you a whole category of bugs that never happen.
 
-Ambiguity is surfaced rather than resolved: say "Daniel" when you have a Daniel Ortiz and a Danielle Ross, and you get a picker.
+Same idea with ambiguity. Say "Daniel" when you've got a Daniel Ortiz and a Danielle Ross on the books, and you get a picker rather than a coin flip.
 
-### AI is a fallback, not the front door
+### AI is the backstop, not the engine
 
-The rules run first — instant, free, offline. Only when they return `unknown` does the app call the server, and only if an `ANTHROPIC_API_KEY` is configured. A typical session costs nothing. The model returns structured intent only; it never writes to the database, its output is range-checked and whitelisted before it touches the app's data shapes, and it lands on the same confirmation card labelled as AI-interpreted.
+There's an optional Claude fallback, but the rules go first. They're instant, free, and work with no signal, which matters when the nearest wifi is in the clubhouse. Only when the rules genuinely can't work something out does it call the API, and only if a key is configured — so most sessions cost nothing at all.
+
+The model only ever returns structured intent. It can't write to the database. Everything it produces gets range-checked and whitelisted before it touches real data, then lands on the same confirmation card as everything else, labelled so you know where it came from.
 
 ---
 
@@ -65,7 +69,9 @@ cp .env.example .env      # Windows: copy .env.example .env
 npm start
 ```
 
-Open <http://localhost:3000>. Requires **Node 22.5+**, which has SQLite built in — nothing to compile. On older Node it falls back to the optional `better-sqlite3` driver.
+Then open <http://localhost:3000>.
+
+You'll want Node 22.5 or newer, which ships with SQLite built in so there's nothing to compile. Older versions fall back to the `better-sqlite3` native driver, which does need build tools.
 
 ```bash
 npm test              # 104 checks
@@ -73,11 +79,11 @@ npm run test:parser   #  36 — phrasings, dates, times, ambiguity
 npm run test:sync     #  68 — auth, sync conflicts, deletes, throttling
 ```
 
-Use Chrome, Edge or Safari for voice. Typing works everywhere and is a first-class path, not a fallback — gyms and pool decks defeat speech recognition routinely.
+Voice needs Chrome, Edge or Safari. Typing works everywhere, and it's a proper first-class path rather than a consolation prize — gyms and pool decks defeat speech recognition all the time.
 
 ---
 
-## Architecture
+## How it's laid out
 
 ```
 server/
@@ -89,49 +95,44 @@ server/
   google.js   Google Calendar two-way sync
   parse.js    optional AI parsing fallback
   demo.js     seeded public demo workspace
-  mailer.js   SMTP with a console fallback
+  mailer.js   SMTP, falling back to the console
 public/
-  index.html  markup and the full design system
+  index.html  markup and the whole design system
   app.js      local store, sync client, voice, parser, views
 test/
-  parser.test.js   runs against the shipped bundle, not a copy
+  parser.test.js   runs against the shipped bundle, not a copy of it
   sync.test.js     drives the real server over HTTP as two devices
 ```
 
-**Frontend dependencies: zero.** No framework, no build step, no bundler. Roughly 1,600 lines of vanilla JS and a design system built on CSS custom properties.
+No framework on the frontend, no build step, no bundler, no dependencies. About 1,600 lines of plain JavaScript and a design system that's just CSS custom properties. I wanted to know what was actually mine.
 
-**Storage** is JSON blobs per record rather than wide columns, because coaches in different disciplines need different fields on a client — level, event, parent contact, injury history. Every read is "give me this coach's records since cursor N", never a content search, so nothing is lost by not being able to query inside a record.
+Records are stored as JSON blobs rather than wide columns. A swim coach needs event times and best times; a life coach needs session themes. Trying to design one table for both means either endless migrations or a sea of nulls. Every read here is "give me this coach's records since cursor N" and never a content search, so there's nothing lost by not being able to query inside a record.
 
 ---
 
 ## Security
 
-- **bcrypt** password hashing, cost 12
-- **Server-side sessions** in httpOnly + sameSite cookies, so page JavaScript can never read a token
-- **Reset tokens stored hashed** — a leaked database can't be used to mint working reset links. Single use, one hour, one live link per account
-- **No account enumeration** — `/forgot` answers identically whether or not the email exists, and login timing is equalised
-- **A successful reset revokes every session**, including an attacker's
-- **Email changes need the current password**, must be confirmed from the new address, and notify the old one
-- **Rate limiting** keyed per IP *and route* *and* identity
+Passwords are bcrypt at cost 12. Sessions live server-side behind httpOnly, sameSite cookies, so page JavaScript can never read a token even if I've left an XSS hole somewhere.
 
-That last one came from a bug: the limiter originally keyed on IP alone for bodies without an `email` field, so finishing a password reset consumed the budget for changing an email, and everyone behind one office NAT shared a single allowance. Found by a test that failed for the wrong reason. There's now a regression test.
+Reset tokens are stored hashed, so getting hold of the database doesn't let you mint working reset links. They're single use, good for an hour, and requesting a new one kills the old. `/forgot` gives the same answer whether or not the address exists, and login timing is equalised, so neither can be used to work out who has an account. A successful reset signs out every session, including whoever prompted it.
+
+Changing your email needs the current password, has to be confirmed from the new address, and pings the old one to say it's happening.
+
+Rate limiting is keyed per IP *and* route *and* identity. That last bit came out of an actual bug: I'd keyed on IP alone for requests with no email in the body, which meant finishing a password reset ate the allowance for changing an email, and everyone behind one office router shared a single budget. A test failed for the wrong reason and led me to it. There's a regression test now.
 
 ---
 
-## Deploying
+## Putting it online
 
-### Free — Render
+### Free, on Render
 
-Push to GitHub, then [render.com](https://render.com) → New → Blueprint → point at the repo. `render.yaml` configures everything and `SESSION_SECRET` is generated for you.
+Push to GitHub, then Render → New → Blueprint → point it at the repo. `render.yaml` handles the rest and generates `SESSION_SECRET` for you.
 
-Two honest limitations of the free tier:
+Two things to know about the free tier. There's no persistent disk, so the database resets whenever the service restarts — `EPHEMERAL_STORAGE=true` makes the app admit that in the UI rather than losing someone's work quietly, and the demo account rebuilds itself from seed on every boot so it's always populated. It also sleeps after about fifteen minutes idle, which means the first visitor waits the better part of a minute. A free ping from cron-job.org hitting `/api/health` every ten minutes keeps it awake, and one always-on service fits inside the 750 free hours a month.
 
-- **No persistent disk.** The database resets on restart or redeploy. `EPHEMERAL_STORAGE=true` makes the app say so in the UI rather than quietly losing someone's work. The demo account is rebuilt from seed on every boot, so the demo is always populated.
-- **Sleeps after ~15 minutes idle**, so the first visitor waits about 50 seconds. A free ping from [cron-job.org](https://cron-job.org) hitting `/api/health` every 10 minutes keeps it warm — one always-on service fits inside the 750 free instance-hours per month.
+### A couple of dollars a month, on Fly
 
-### ~$2–3/month — Fly.io
-
-`fly.toml` mounts a real volume, so data survives restarts and cold starts take a second or two instead of fifty.
+`fly.toml` mounts a real volume, so data survives restarts and cold starts take a second or two rather than fifty.
 
 ```bash
 fly launch --no-deploy --name coachdesk-yourname
@@ -140,53 +141,51 @@ fly secrets set SESSION_SECRET=$(openssl rand -hex 32) PUBLIC_DEMO=true
 fly deploy
 ```
 
-In production, set `NODE_ENV=production` so session cookies get the `Secure` flag, configure `SMTP_*` so reset links stop printing to the console, and set `APP_URL` to your real domain.
+For anything real, set `NODE_ENV=production` so cookies get the Secure flag, configure `SMTP_*` so reset links stop printing to the console, and point `APP_URL` at your actual domain.
 
 ---
 
-## Optional integrations
+## Optional extras
 
-Everything below is off by default and the app runs fine without it. Each degrades with a clear explanation rather than an error.
+All off by default. The app runs fine without any of them, and each one explains itself rather than erroring when it isn't set up.
 
-| Feature | Enable with | Without it |
+| Feature | Turn on with | Otherwise |
 |---|---|---|
-| Google Calendar two-way sync | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Panel explains the setup steps |
+| Google Calendar sync | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Panel walks you through the setup |
 | Password reset emails | `SMTP_HOST` and credentials | Links print to the server console |
-| AI parsing fallback | `ANTHROPIC_API_KEY` | Rules only; unmatched input shows examples |
+| AI parsing fallback | `ANTHROPIC_API_KEY` | Rules only; odd phrasings show examples |
 | Public demo account | `PUBLIC_DEMO=true` | Signup only |
 
-**Google Calendar conflict rule: CoachDesk wins.** The local version overwrites Google unconditionally. Events created *in* Google are imported and left alone. Predictable beats clever here — though it does mean an edit made in Google to a CoachDesk event gets overwritten on the next sync.
+On Google Calendar conflicts, CoachDesk always wins: the local copy overwrites Google, no comparison. Events created in Google get imported and left alone. That's blunt, but blunt and predictable beats clever and surprising. The catch is that editing a CoachDesk event inside Google gets undone on the next sync.
 
-**Client names are not written into Google event titles** (`TITLE_INCLUDES_CLIENT` in `server/google.js`). Coaches share calendars, and leaking a client list into a shared calendar is a real harm.
+Client names deliberately don't go into Google event titles. Coaches share calendars with clubs and parents all the time, and dumping a client list into a shared calendar is a genuine harm, not a hypothetical one. It's one constant in `server/google.js` if your situation is different.
 
 ---
 
 ## Clients under 18
 
-Data-protection duties attach to the person a record is *about*, not the coach holding it. Marking a client under 18 requires a guardian name and contact, and records whether consent was obtained, when, and how. Missing consent shows as a banner on the client list and a flag on the record. Every client sheet exports everything held about that one person, for when a guardian asks for a copy.
+Data protection attaches to whoever the record is *about*, not whoever's holding it. Marking a client as under 18 asks for a guardian name and contact, then records whether consent was actually obtained, when, and how. If it's missing you get a banner on the client list and a flag on the record. Each client sheet can export everything held about that one person, which is what you need when a parent asks what you've got.
 
-It nags rather than blocks — blocking would push people to record minors as adults.
+It nags rather than blocks. Blocking would just teach people to record minors as adults.
 
-> This is a prompt and a record, not a compliance system, and not legal advice.
-
----
-
-## Known gaps
-
-Written down rather than hidden, because pretending they don't exist is worse:
-
-- **Consent capture has no retention schedule**, no automatic deletion, no withdrawal flow, and no audit trail of who viewed a record.
-- **Sync is polled** — every 60 seconds, on focus, and after edits. Fine for one coach on two devices; real-time would need WebSockets.
-- **Google sync runs only when you press the button.** No background job, no webhook. The UI says so rather than implying it's live.
-- **Recurring lessons aren't supported.** "Every Tuesday at 4" is detected and creates a single event with a warning, rather than silently booking one week and losing the rest.
-- **Names are guessed from position**, so unusual ones can land wrong. The confirmation card is the safety net.
-- **`"next Tuesday"` is ambiguous in English** and resolves to the Tuesday *after* the coming one. The card flags it and shows the resolved date.
-- **Rate limiting is in-memory**, so it resets on restart and doesn't work across processes.
-- **No password reset without email access**, and no account recovery beyond that.
-- **SQLite is single-process.** Fine as deployed; more than one instance means moving to Postgres. The storage layer is small and isolated in `server/db.js`.
+None of this makes anyone compliant on its own, and none of it is legal advice.
 
 ---
 
-## Licence
+## What's missing
 
-MIT
+Writing these down beats pretending they aren't there:
+
+- Consent capture has no retention schedule, no automatic deletion, no way to withdraw, and no record of who looked at what.
+- Sync is polled rather than pushed: every sixty seconds, on focus, and after edits. Fine for one coach and two devices. Real-time would want WebSockets.
+- Google sync only runs when you press the button. No background job, no webhook. The UI says as much instead of implying otherwise.
+- Recurring lessons don't exist yet. "Every Tuesday at 4" is spotted and creates a single event with a warning, which beats booking one week and silently dropping the rest.
+- Names are inferred from position, so unusual ones can land wrong. The confirmation card is the safety net.
+- "Next Tuesday" is genuinely ambiguous in English. It resolves to the Tuesday after the coming one, and the card shows you what it decided.
+- Rate limiting lives in memory, so it resets on restart and doesn't work across processes.
+- Lose access to your email and there's no way back into the account.
+- SQLite is single-process. Fine as deployed. More than one instance means Postgres, though the storage layer is small and lives entirely in `server/db.js`.
+
+---
+
+MIT licensed.
