@@ -12,7 +12,15 @@
 
 const fs = require("fs");
 const path = require("path");
-const { JSDOM } = require("jsdom");
+
+let JSDOM;
+try {
+  ({ JSDOM } = require("jsdom"));
+} catch (e) {
+  console.error("\n  jsdom isn't installed - it's a dev dependency of this project.\n" +
+                "  Run:  npm install\n");
+  process.exit(1);
+}
 
 const dist = path.join(__dirname, "..", "dist");
 if (!fs.existsSync(path.join(dist, "index.html"))) {
