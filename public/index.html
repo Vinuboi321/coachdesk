@@ -195,8 +195,13 @@ nav.tabs button[aria-selected=true] .badge{background:var(--accent-soft);color:v
 /* The dock is fixed to the bottom and its height changes a lot - a
    confirmation card is far taller than the bare input. --dock-h is
    measured in JS so the page always reserves the right amount and the
-   last card is never trapped underneath. 190px is the no-JS fallback. */
-main{padding-bottom:calc(var(--dock-h, 190px) + 28px)}
+   last card is never trapped underneath. 190px is the no-JS fallback.
+
+   Selector must be main.wrap, not main: <main> also carries .wrap, whose
+   `padding: 0 20px` shorthand sets padding-bottom to 0. A bare type
+   selector loses to that class and the clearance silently disappears -
+   which is exactly what happened here. */
+main.wrap{padding-bottom:calc(var(--dock-h, 190px) + 28px)}
 section.view{display:none;animation:fade .28s var(--ease)}
 section.view.active{display:block}
 @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}

@@ -110,9 +110,17 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
      and they can't be scrolled to. Regression: this shipped once. */
   console.log("\n  Page reserves room for however tall the dock gets\n");
   const css = fs.readFileSync(path.join(dist, "index.html"), "utf8");
-  ok("main padding tracks the dock height", /main\{padding-bottom:calc\(var\(--dock-h/.test(css));
-  ok("no hardcoded dock reservation", !/main\{padding-bottom:calc\(190px/.test(css));
+  ok("main padding tracks the dock height", /main\.wrap\{padding-bottom:calc\(var\(--dock-h/.test(css));
+  ok("no hardcoded dock reservation", !/main[.\w]*\{padding-bottom:calc\(190px/.test(css));
   ok("tall cards scroll internally", /\.confirm\{[^}]*max-height/s.test(css));
+
+  /* <main> also carries .wrap, and `.wrap{padding:0 20px}` sets
+     padding-bottom to 0 at higher specificity than a bare `main{}` type
+     selector. Written the wrong way the clearance silently vanishes, which
+     is precisely the bug that shipped. jsdom's cascade doesn't model
+     specificity well enough to catch it, so assert on the selector. */
+  ok("clearance rule outranks the .wrap shorthand",
+     !/[};]\s*main\{padding-bottom/.test(css));
 
   // jsdom reports offsetHeight as 0, so fake a dock height and check the
   // measurement actually reaches the custom property.
