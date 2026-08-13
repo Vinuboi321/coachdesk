@@ -958,46 +958,107 @@ function commitPending(){
    decks defeat speech recognition routinely.
 --------------------------------------------------------------------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const HINT = "Try “I have a new client Ryan Cole, golf, he's 27, 555-018-8100”";
-let recog=null, listening=false;
-// Text already in the box when the mic opens — speech is appended to it,
-// so a pre-filled client name survives dictation.
+
+/* What to say, per section. The prompt should suggest something useful
+   for the screen you're actually on. */
+const HINTS = {
+  clients:  "Try “I have a new client Ryan Cole, golf, he's 27, 555-018-8100”",
+  calendar: "Try “Schedule a lesson with Emma on Tuesday at 4pm”",
+  profile:  "Try “Add certification Level 2 Instructor”"
+};
+const currentHint = () => HINTS[activeTab] || HINTS.clients;
+
+/** Refresh the prompt, unless the mic is live or something set its own.
+    The example is shown whether or not speech is available - it's just as
+    useful when typing. Browsers without the API get a disabled mic and a
+    plainer placeholder instead. */
+function refreshHint(){
+  const el = $("#hint");
+  if (!el || listening) return;
+  el.textContent = currentHint();
+}
+
+/* Left to itself the browser ends recognition at the first pause, which
+   cuts people off mid-sentence and fires off a half-heard command. So run
+   continuously and decide when they've finished ourselves: every result
+   restarts a silence timer, and only when that expires do we submit. */
+const SILENCE_MS = 1800;
+const MAX_LISTEN_MS = 25000;
+
+let recog = null, listening = false;
+let silenceTimer = null, maxTimer = null, finalText = "";
+// Text already in the box when the mic opens. Speech is appended to it so
+// a pre-filled client name survives dictation.
 let micPrefix = "";
 
 function initVoice(){
-  const btn=$("#mic"), input=$("#cmd");
-  $("#hint").textContent = HINT;
+  const btn = $("#mic"), input = $("#cmd");
+  refreshHint();
 
   if (!SR){
     btn.disabled = true;
     btn.title = "Voice needs Chrome, Edge or Safari";
-    $("#hint").textContent = "Voice needs Chrome, Edge or Safari — typing works everywhere.";
+    input.placeholder = "Type a command…";
   } else {
     recog = new SR();
-    recog.continuous = false; recog.interimResults = true;
+    recog.continuous = true;        // we decide when it's over, not the browser
+    recog.interimResults = true;
     recog.lang = navigator.language || "en-US";
-    recog.onstart = () => { listening=true; btn.classList.add("live"); $("#hint").textContent="Listening…"; };
+
+    const stopSoon = () => {
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => { try { recog.stop(); } catch(e){} }, SILENCE_MS);
+    };
+    const clearTimers = () => { clearTimeout(silenceTimer); clearTimeout(maxTimer); };
+
+    recog.onstart = () => {
+      listening = true; finalText = "";
+      btn.classList.add("live");
+      $("#hint").textContent = "Listening. Take your time, it waits for you to finish.";
+      stopSoon();
+      maxTimer = setTimeout(() => { try { recog.stop(); } catch(e){} }, MAX_LISTEN_MS);
+    };
+
+    recog.onresult = e => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++){
+        const r = e.results[i];
+        if (r.isFinal) finalText += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      input.value = (micPrefix + finalText + interim).replace(/\s+/g, " ");
+      stopSoon();                   // still talking, hold off
+    };
+
+    // Fires when speech is detected even before a transcript arrives.
+    recog.onspeechstart = stopSoon;
+
     recog.onend = () => {
-      listening=false; btn.classList.remove("live"); $("#hint").textContent=HINT;
+      listening = false;
+      clearTimers();
+      btn.classList.remove("live");
       const val = input.value.trim();
       const prefix = micPrefix.trim();
-      micPrefix = "";
-      // Nothing but the pre-filled prefix means we heard no speech —
-      // submitting that would just produce a useless card.
+      micPrefix = ""; finalText = "";
+      refreshHint();
+      // Only the pre-filled prefix means nothing was heard, and submitting
+      // that just produces a useless card.
       if (val && val !== prefix) submitCommand(val);
     };
+
     recog.onerror = e => {
-      listening=false; btn.classList.remove("live");
-      toast(e.error==="not-allowed" ? "Microphone blocked — check browser permissions."
-          : e.error==="no-speech" ? "Didn't hear anything. Try again."
-          : "Voice error: "+e.error);
+      listening = false;
+      clearTimers();
+      btn.classList.remove("live");
+      refreshHint();
+      if (e.error === "aborted") return;          // we stopped it on purpose
+      toast(e.error === "not-allowed" ? "Microphone blocked. Check browser permissions."
+          : e.error === "no-speech"   ? "Didn't hear anything. Try again."
+          : "Voice error: " + e.error);
     };
-    recog.onresult = e => {
-      let s=""; for (let i=e.resultIndex;i<e.results.length;i++) s += e.results[i][0].transcript;
-      input.value = micPrefix + s;
-    };
+
     btn.onclick = () => {
-      if (listening){ recog.stop(); return; }
+      if (listening){ clearTimers(); try { recog.stop(); } catch(e){} return; }
       micPrefix = "";                 // a plain tap starts fresh
       input.value = "";
       try { recog.start(); } catch(err){ toast("Couldn't start the mic"); }
@@ -2118,6 +2179,7 @@ function goTab(name){
   $$("nav.tabs button").forEach(x => x.setAttribute("aria-selected", String(x.dataset.tab === name)));
   $$("section.view").forEach(v => v.classList.toggle("active", v.id === "view-" + name));
   render();
+  refreshHint();
 }
 $$("nav.tabs button").forEach(b => b.onclick = () => goTab(b.dataset.tab));
 $("#btnAccount").onclick = accountPanel;
@@ -2183,4 +2245,5 @@ async function bootStatic(){
 Object.assign(window, { openClient, openClientEditor, addNoteTo, closeSheet, dismissConfirm,
   tryExample, moveMonth, goToday, selectDay, openEventEditor, googlePanel, preview, copyDoc,
   editExp, editCert, editTest, delSpec, exportJSON, exportClient, accountPanel, syncNow,
-  parseCommand, goTab, startScheduling, bootStatic, retryVoice, measureDock });
+  parseCommand, goTab, startScheduling, bootStatic, retryVoice, measureDock,
+  refreshHint, currentHint });

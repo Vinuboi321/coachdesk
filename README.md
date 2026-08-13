@@ -4,7 +4,7 @@ Client and scheduling manager for coaches, driven by voice. You say a sentence, 
 
 [![CI](https://github.com/Vinuboi321/coachdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/Vinuboi321/coachdesk/actions/workflows/ci.yml)
 [![Pages](https://github.com/Vinuboi321/coachdesk/actions/workflows/pages.yml/badge.svg)](https://github.com/Vinuboi321/coachdesk/actions/workflows/pages.yml)
-![Tests](https://img.shields.io/badge/tests-138%20passing-3D5A4C)
+![Tests](https://img.shields.io/badge/tests-142%20passing-3D5A4C)
 ![Node](https://img.shields.io/badge/node-22%2B-3D5A4C)
 
 **[Live demo](https://vinuboi321.github.io/coachdesk/)** — loads with sample data, no signup.
@@ -13,7 +13,7 @@ Client and scheduling manager for coaches, driven by voice. You say a sentence, 
 
 Three sections: clients, calendar, and a profile that exports as a résumé or a client-facing flier. Everything works offline and syncs when you reconnect. You can type anywhere you can speak.
 
-## Notable bits
+## Activity Overview
 
 **Parsing.** It pulls entities out of a sentence instead of matching a fixed pattern, so word order doesn't matter. Both of these produce the same record:
 
@@ -41,7 +41,7 @@ npm start
 Node 22.5 or newer, which has SQLite built in. Then <http://localhost:3000>.
 
 ```bash
-npm test        # 138 checks across the parser, the server, and the deployed build
+npm test        # 142 checks across the parser, the server, and the deployed build
 ```
 
 Voice needs Chrome, Edge or Safari.

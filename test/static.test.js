@@ -131,6 +131,17 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
      w.document.documentElement.style.getPropertyValue("--dock-h") === "412px",
      w.document.documentElement.style.getPropertyValue("--dock-h"));
 
+  /* The prompt under the input should suggest something useful for the
+     screen you're on, not the same client example everywhere. */
+  console.log("\n  Prompt follows the section you're in\n");
+  w.goTab("clients");
+  ok("clients suggests adding someone", /new client/i.test(text("#hint")), text("#hint"));
+  w.goTab("calendar");
+  ok("calendar suggests scheduling", /schedule a lesson/i.test(text("#hint")), text("#hint"));
+  ok("...with a day and a time", /tuesday.*4pm/i.test(text("#hint")), text("#hint"));
+  w.goTab("profile");
+  ok("profile suggests a credential", /certification/i.test(text("#hint")), text("#hint"));
+
   console.log("\n  Views render\n");
   try { w.goTab("calendar"); ok("calendar", /Coming up|Nothing scheduled/.test(text("#view-calendar"))); }
   catch (e) { fail++; console.log("  FAIL  calendar [" + e.message + "]"); }
