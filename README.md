@@ -7,7 +7,9 @@ Client and scheduling manager for coaches, driven by voice. You say a sentence, 
 ![Tests](https://img.shields.io/badge/tests-142%20passing-3D5A4C)
 ![Node](https://img.shields.io/badge/node-22%2B-3D5A4C)
 
-**[Live demo](https://vinuboi321.github.io/coachdesk/)** — loads with sample data, no signup.
+**[Live demo](https://vinuboi321.github.io/coachdesk/)** — browser-only build, loads instantly with sample data.
+
+**[Full version](https://coachdesk-7bdr.onrender.com)** — the real server: accounts, multi-device sync, Google Calendar. There's a "Try the demo" button. Free hosting, so the first request after a quiet spell takes about a minute to wake up.
 
 ## What it does
 
