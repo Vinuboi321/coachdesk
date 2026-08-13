@@ -9,7 +9,7 @@ Client and scheduling manager for coaches, driven by voice. You say a sentence, 
 
 **[Live demo](https://vinuboi321.github.io/coachdesk/)** — browser-only build, loads instantly with sample data.
 
-**[Full version](https://coachdesk-7bdr.onrender.com)** — the real server with accounts, multi-device sync, Google Calendar. Takes about a minute to boot up
+**[Full version](https://coachdesk-7bdr.onrender.com)** — the real server: accounts, multi-device sync, Google Calendar. There's a "Try the demo" button. Free hosting, so the first request after a quiet spell takes about a minute to wake up.
 
 ## What it does
 
@@ -30,7 +30,7 @@ Nothing saves without confirmation. Speech recognition mangles names constantly,
 
 **Sync.** The cursor is a sequence number issued by the server, not a timestamp. Phone clocks drift, and a device running a few minutes fast would skip records permanently. Conflicts are last-write-wins per record; the losing device gets the winning version back in the same response and corrects itself. Deletes leave tombstones, otherwise a device that was offline during a deletion re-uploads the record and resurrects it.
 
-**No frontend dependencies.** About 1,600 lines of plain JavaScript. No framework, no bundler, no build step.
+No frontend dependencies.
 
 ## Running it
 
@@ -57,32 +57,10 @@ scripts/   static build for github pages
 test/      parser, server and sync, deployed build
 ```
 
-## Google Calendar
-
-Two-way sync, live on the deployed instance. Sessions get pushed to Google so clients receive normal invites, and events already in Google get pulled back in.
-
-Conflicts resolve in CoachDesk's favour: the local copy overwrites Google, no comparison. Events created in Google are imported and left alone. Blunt, but predictable.
-
-Client names are deliberately kept out of Google event titles. Coaches share calendars with clubs and parents, and a shared calendar full of client names is a real leak.
-
-The OAuth app is in Google's testing mode, so only accounts added as test users can connect. Going further means submitting for verification, which isn't worth it for a portfolio project. Setup steps are in `.env.example`.
-
-## Other optional extras
-
-Password reset emails, a public demo account, and an AI parsing fallback all switch on with environment variables and stay off without them.
 
 ## Deploying
 
 GitHub Pages serves the browser-only build and redeploys on every push. `render.yaml` and `fly.toml` are there for the full stack with a real server.
-
-## Known gaps
-
-- Sync polls rather than pushes
-- Google sync runs only when you press the button, and only test users can connect until the app is verified
-- Recurring lessons are detected but not supported
-- Consent tracking is a prompt and a record, not a compliance system
-- Rate limiting is in-memory
-- SQLite is single-process
 
 ## Licence
 
