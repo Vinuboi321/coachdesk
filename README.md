@@ -57,11 +57,19 @@ scripts/   static build for github pages
 test/      parser, server and sync, deployed build
 ```
 
-## Optional extras
+## Google Calendar
 
-Google Calendar sync, password reset emails, a public demo account, and an AI parsing fallback all switch on with environment variables and stay off without them. `.env.example` has the details.
+Two-way sync, live on the deployed instance. Sessions get pushed to Google so clients receive normal invites, and events already in Google get pulled back in.
 
-Google conflicts resolve in CoachDesk's favour. Client names are deliberately kept out of Google event titles, since coaches share calendars.
+Conflicts resolve in CoachDesk's favour: the local copy overwrites Google, no comparison. Events created in Google are imported and left alone. Blunt, but predictable.
+
+Client names are deliberately kept out of Google event titles. Coaches share calendars with clubs and parents, and a shared calendar full of client names is a real leak.
+
+The OAuth app is in Google's testing mode, so only accounts added as test users can connect. Going further means submitting for verification, which isn't worth it for a portfolio project. Setup steps are in `.env.example`.
+
+## Other optional extras
+
+Password reset emails, a public demo account, and an AI parsing fallback all switch on with environment variables and stay off without them.
 
 ## Deploying
 
@@ -70,7 +78,7 @@ GitHub Pages serves the browser-only build and redeploys on every push. `render.
 ## Known gaps
 
 - Sync polls rather than pushes
-- Google sync runs only when you press the button
+- Google sync runs only when you press the button, and only test users can connect until the app is verified
 - Recurring lessons are detected but not supported
 - Consent tracking is a prompt and a record, not a compliance system
 - Rate limiting is in-memory
