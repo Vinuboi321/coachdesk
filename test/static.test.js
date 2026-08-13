@@ -68,7 +68,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok("no script errors", errors.length === 0, errors.join(" | "));
   ok("sign-in gate hidden", !visible($("#gate")));
   ok("app visible", visible($("#app")));
-  ok("browser-demo banner shown", visible($("#banner")) && /Browser demo/.test(text("#banner")));
+  ok("demo-mode banner shown", visible($("#banner")) && /Demo mode/.test(text("#banner")));
   ok("sync shows saved", $("#syncDot").className.includes("ok"));
 
   console.log("\n  Seeded with a worked example\n");
@@ -89,7 +89,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   w.tryExample("book a lesson with Emma tomorrow at half past four");
   await wait(200);
   ok("confirmation card shown", /Schedule/i.test(text("#confirmSlot")));
-  ok("framed as a suggestion", /what it made of that/i.test(text("#confirmSlot")));
+  ok("framed as editable", /Edit anything that's wrong/i.test(text("#confirmSlot")));
   ok("offers to re-say it", !!$("#pfRetry"));
   ok("has an editable date field", !!$("#pfDate"));
 

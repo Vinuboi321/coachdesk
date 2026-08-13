@@ -84,7 +84,7 @@ function setSyncState(s){
   if (!d) return;
   d.className = "syncdot" + (s==="ok"?" ok":s==="busy"?" busy":s==="error"?" err":"");
   d.title = { idle:"Not synced yet", busy:"Syncing…", ok:"All changes saved",
-              offline:"Offline — changes saved on this device", error:"Sync problem" }[s] || "";
+              offline:"Offline. Saved on this device", error:"Sync problem" }[s] || "";
 }
 
 function scheduleSync(delay = 1200){
@@ -687,8 +687,8 @@ function showConfirm(p){
       ${heardSomething ? `<div class="heard">${esc(p.raw)}</div>` : ""}
       <div class="sm muted" style="margin-bottom:16px">
         ${heardSomething
-          ? "Not sure what you meant by that. Try saying it again, a bit slower."
-          : "Didn't hear anything. Have another go."}
+          ? "Try again, a bit slower."
+          : "Nothing heard."}
       </div>
       <div class="row" style="gap:9px">
         <button class="btn" id="uRetry">Try again</button>
@@ -696,7 +696,7 @@ function showConfirm(p){
         <button class="btn quiet" onclick="dismissConfirm()">Dismiss</button>
       </div>
       <div id="uSamples" class="hidden" style="margin-top:14px">
-        <div class="xs faint" style="margin-bottom:6px">Tap one to try it:</div>
+        <div class="xs faint" style="margin-bottom:6px">Tap to try:</div>
         ${["I have a new client Ryan Cole for golf, he's 27, 555-018-8100",
            "Schedule a lesson with Emma tomorrow at half past four",
            "Note for Emma: great progress on her serve today",
@@ -727,13 +727,13 @@ function showConfirm(p){
   if (p.intent === "add_client"){
     const dupes = p.name ? matchClients(p.name) : [];
     if (p.needsName || !p.name){
-      notice = "Couldn't pick out a name from that — type it in below."; noticeBad = true;
+      notice = "No name found. Type it below."; noticeBad = true;
     } else if (dupes.length){
-      notice = `You already have <strong>${esc(dupes[0].name)}</strong>. Saving creates a second record.`;
+      notice = `<strong>${esc(dupes[0].name)}</strong> already exists. This makes a second record.`;
     }
     const minor = p.age != null && p.age < 18;
     if (minor) {
-      notice = `${esc(p.name || "This client")} is ${p.age}. Records about a minor need a guardian contact and consent — fill those in below.`;
+      notice = `${esc(p.name || "This client")} is ${p.age}. Guardian contact and consent required.`;
       noticeBad = true;
     }
     body = `<div class="grid2">
@@ -749,23 +749,23 @@ function showConfirm(p){
     </div>
     <label class="check" style="margin:-4px 0 12px">
       <input type="checkbox" id="pfConsent">
-      <span>Guardian consent has been obtained</span>
+      <span>Guardian consent obtained</span>
     </label>` : ""}`;
   }
 
   else if (p.intent === "add_event"){
     const when = p.when || (()=>{ const d=new Date(); d.setHours(d.getHours()+1,0,0,0); return d; })();
     const li = toLocalInput(when);
-    if (!p.hasDate){ notice = "No date heard — defaulted to the next hour. Check it before saving."; }
-    else if (!p.hasTime){ notice = "No time heard — defaulted to 9:00am."; }
-    else if (p.ambiguousWeekday){ notice = `Read as <strong>${esc(fmtDay(when))}</strong>. “Next” weekday is ambiguous — adjust if you meant the earlier one.`; }
-    else if (p.guessedMeridiem){ notice = `Read as <strong>${esc(fmtTime(when))}</strong> — you didn't say am or pm. Change it if that's wrong.`; }
+    if (!p.hasDate){ notice = "No date heard. Defaulted to the next hour."; }
+    else if (!p.hasTime){ notice = "No time heard. Defaulted to 9am."; }
+    else if (p.ambiguousWeekday){ notice = `Read as <strong>${esc(fmtDay(when))}</strong>. “Next” is ambiguous.`; }
+    else if (p.guessedMeridiem){ notice = `Read as <strong>${esc(fmtTime(when))}</strong>. You didn't say am or pm.`; }
     if (p.recurring){
-      notice = "<strong>Repeating lessons aren't supported yet.</strong> This saves the first one only — add the rest individually.";
+      notice = "<strong>No repeating lessons yet.</strong> Saves the first one only.";
       noticeBad = true;
     }
-    if (noMatch){ notice = `No client matches “${esc(p.clientQuery)}”. Pick one, or save without and link it later.`; noticeBad = true; }
-    else if (ambiguous){ notice = `“${esc(p.clientQuery)}” matches ${matches.length} clients. Confirm which.`; noticeBad = true; }
+    if (noMatch){ notice = `No match for “${esc(p.clientQuery)}”. Pick one, or leave blank.`; noticeBad = true; }
+    else if (ambiguous){ notice = `“${esc(p.clientQuery)}” matches ${matches.length}. Pick one.`; noticeBad = true; }
     body = `<label class="fld"><span>Title</span><input id="pfTitle" type="text" value="${esc(p.title)}"></label>
       ${picker("Client", false)}
       <div class="grid2">
@@ -777,8 +777,8 @@ function showConfirm(p){
   }
 
   else if (p.intent === "add_note"){
-    if (noMatch){ notice = `No client matches “${esc(p.clientQuery)}”. Choose who this belongs to.`; noticeBad = true; }
-    else if (ambiguous){ notice = `“${esc(p.clientQuery)}” matches ${matches.length} clients. Confirm which.`; noticeBad = true; }
+    if (noMatch){ notice = `No match for “${esc(p.clientQuery)}”. Pick a client.`; noticeBad = true; }
+    else if (ambiguous){ notice = `“${esc(p.clientQuery)}” matches ${matches.length}. Pick one.`; noticeBad = true; }
     body = `${picker("Client", true)}
       <label class="fld"><span>Note</span><textarea id="pfNote">${esc(p.text)}</textarea></label>`;
   }
@@ -800,7 +800,7 @@ function showConfirm(p){
         <button class="btn ghost s" onclick="dismissConfirm()">Dismiss</button></div>`;
       return;
     }
-    notice = "This removes the event for good."; noticeBad = true;
+    notice = "Deletes the event."; noticeBad = true;
     body = `<label class="fld"><span>Cancel which?</span><select id="pfEvent">
       ${cands.map(e=>`<option value="${e.id}">${esc(e.title)}${e.clientId?" — "+esc(clientName(e.clientId)):""} · ${esc(fmtDT(e.start))}</option>`).join("")}
     </select></label>`;
@@ -813,7 +813,7 @@ function showConfirm(p){
   slot.innerHTML = `<div class="confirm">
     <div class="kicker">${titles[p.intent]||"Confirm"}${p.fromAI?' <span class="faint" style="font-weight:500;letter-spacing:0;text-transform:none">· interpreted by AI</span>':""}</div>
     <div class="heard">${esc(p.raw)}</div>
-    <div class="suggest">This is what it made of that. Change anything that's off, or say it again.</div>
+    <div class="suggest">Edit anything that's wrong.</div>
     ${notice?`<div class="notice${noticeBad?" bad":""}">${notice}</div>`:""}
     ${body}
     <div class="row" style="gap:9px;margin-top:6px">
@@ -851,7 +851,7 @@ function offerLessons(client){
   const first = client.name.split(" ")[0];
   $("#confirmSlot").innerHTML = `<div class="confirm">
     <div class="kicker">${esc(client.name)} added</div>
-    <div class="sm muted" style="margin-bottom:14px">Book their first lesson while you're here?</div>
+    <div class="sm muted" style="margin-bottom:14px">Book a lesson?</div>
     <div class="row" style="gap:9px">
       <button class="btn" id="okLessons">Schedule lessons</button>
       <button class="btn quiet" onclick="dismissConfirm()">Not now</button>
@@ -868,7 +868,7 @@ function startScheduling(client){
   input.value = `Schedule a lesson with ${client.name} `;
   input.focus();
   input.setSelectionRange(input.value.length, input.value.length);
-  $("#hint").textContent = `Now say when — “tomorrow at 4pm”, “Tuesday at half past three”`;
+  $("#hint").textContent = `When? “tomorrow at 4pm”, “Tuesday at half past three”`;
   // Speaking is the point, so open the mic rather than waiting for a tap.
   if (recog && !listening){
     micPrefix = input.value;          // keep the name, append what's spoken
@@ -897,7 +897,7 @@ function commitPending(){
     const minor = Number.isFinite(age) && age < 18;
 
     if (minor && (!v("pfGName") || !v("pfGContact")))
-      return toast("Guardian name and contact are required for a client under 18");
+      return toast("Guardian name and contact required");
 
     const rec = { id:uid(), name, phone:v("pfPhone"), email:v("pfEmail"),
       tags:v("pfTags").split(",").map(s=>s.trim()).filter(Boolean),
@@ -1014,7 +1014,7 @@ function initVoice(){
     recog.onstart = () => {
       listening = true; finalText = "";
       btn.classList.add("live");
-      $("#hint").textContent = "Listening. Take your time, it waits for you to finish.";
+      $("#hint").textContent = "Listening…";
       stopSoon();
       maxTimer = setTimeout(() => { try { recog.stop(); } catch(e){} }, MAX_LISTEN_MS);
     };
@@ -1223,10 +1223,10 @@ function renderClients(){
 
 const emptyClients = () => clients().length ? `
   <div class="empty"><div class="icon">${ICON.users}</div>
-    <h3>No matches</h3><p>Nothing here by that name. Try a shorter search.</p></div>`
+    <h3>No matches</h3><p>Try a shorter search.</p></div>`
   : `<div class="empty"><div class="icon">${ICON.users}</div>
-    <h3>Let's add your first client</h3>
-    <p>Tap the microphone and just say it — no particular order, no keywords to remember.</p>
+    <h3>No clients yet</h3>
+    <p>Say it however you like. Order doesn't matter.</p>
     <span class="sample" onclick="tryExample(&quot;I have a client Ryan Cole for golf, he's 27, his number is 555-018-8100&quot;)">I have a client Ryan Cole for golf, he's 27, his number is 555-018-8100</span>
   </div>`;
 
@@ -1255,7 +1255,7 @@ function openClient(id){
     </div>
 
     ${cs ? `<div class="notice ${cs.ok?"good":"bad"}" style="margin-bottom:14px">
-      ${cs.ok ? "" : "<strong>Action needed.</strong> "}${esc(cs.text)}.
+      ${cs.ok ? "" : "<strong>Missing.</strong> "}${esc(cs.text)}.
       ${cs.ok ? "" : ` <a href="#" onclick="openClientEditor('${c.id}');return false">Record it now</a>`}
       ${g.name ? `<div style="margin-top:6px">Guardian: ${esc(g.name)}${g.contact?` · ${esc(g.contact)}`:""}</div>` : ""}
     </div>` : ""}
@@ -1275,13 +1275,12 @@ function openClient(id){
     ${(c.notes||[]).length ? c.notes.map(n=>`<div class="note">
         <div class="meta">${esc(fmtDay(n.at))} · ${esc(fmtTime(n.at))}</div>
         <div class="sm">${esc(n.text)}</div></div>`).join("")
-      : `<div class="sm faint" style="padding:2px">Nothing yet. Say “Note for ${esc(c.name.split(" ")[0])}: …”</div>`}
+      : `<div class="sm faint" style="padding:2px">Say “Note for ${esc(c.name.split(" ")[0])}: …”</div>`}
 
     <div class="sec"><h2>Record</h2><div class="rule"></div></div>
     <button class="btn ghost s" onclick="exportClient('${c.id}')">Export everything held about ${esc(c.name.split(" ")[0])}</button>
     <div class="xs faint" style="margin-top:8px;line-height:1.65">
-      Notes, details and session history as one file — for when a client or guardian asks
-      for a copy of what you hold.
+      Everything on file, as one JSON file.
     </div>
   `);
 }
@@ -1289,7 +1288,7 @@ function openClient(id){
 function addNoteTo(id){
   const c = clientById(id); if (!c) return;
   openSheet("Note — " + c.name, `
-    <label class="fld"><span>What happened?</span><textarea id="nText" placeholder="Drills, breakthroughs, what to pick up next time…"></textarea></label>
+    <label class="fld"><span>What happened?</span><textarea id="nText" placeholder="What happened?"></textarea></label>
     <div class="row" style="gap:9px"><button class="btn" id="nSave">Save</button>
       <button class="btn quiet" onclick="openClient('${id}')">Back</button></div>`,
     m => {
@@ -1344,8 +1343,7 @@ function minorBlock(c){
     </label>
     <div id="minorFields" class="${on?"":"hidden"}">
       <div class="notice" style="margin-bottom:14px">
-        Records about a minor carry extra duties — guardian consent, retention limits, and
-        the right to ask for a copy. Capture the essentials here.
+        Under-18 records need guardian consent and contact details.
       </div>
       <div class="grid2">
         <label class="fld"><span>Guardian name</span><input id="eGName" type="text" value="${esc(g.name||"")}"></label>
@@ -1353,7 +1351,7 @@ function minorBlock(c){
       </div>
       <label class="check" style="margin-bottom:12px">
         <input type="checkbox" id="eConsent" ${con.obtained?"checked":""}>
-        <span>Guardian consent has been obtained for storing these records</span>
+        <span>Guardian consent obtained</span>
       </label>
       <div id="consentDetail" class="${con.obtained?"":"hidden"}">
         <div class="grid2">
@@ -1382,7 +1380,7 @@ function readMinorBlock(m){
   const name = m.querySelector("#eGName").value.trim();
   const contact = m.querySelector("#eGContact").value.trim();
   if (!name || !contact){
-    toast("Guardian name and contact are required for a client under 18");
+    toast("Guardian name and contact required");
     return null;
   }
   const obtained = m.querySelector("#eConsent").checked;
@@ -1430,7 +1428,7 @@ function openClientEditor(id){
 
     <div class="sec"><h2>Custom fields</h2><div class="rule"></div>
       <button class="btn quiet s" id="eAdd">Add field</button></div>
-    <div class="xs faint" style="margin:-6px 0 12px">Whatever this client needs — level, event, goal, injury history.</div>
+    <div class="xs faint" style="margin:-6px 0 12px">Level, event, goal, injury history, anything.</div>
     <div id="eFields">${fields.map(([k,v])=>fieldRow(k,v)).join("")}</div>
     <div class="row" style="margin-top:18px;gap:9px">
       <button class="btn" id="eSave">Save</button><div class="grow"></div>
@@ -1600,15 +1598,13 @@ async function refreshGoogleLine(){
 function googlePanel(){
   if (STATIC){
     openSheet("Google Calendar", `
-      <div class="notice" style="margin-bottom:14px">Not available in the browser demo.</div>
+      <div class="notice" style="margin-bottom:14px">Not in the demo build.</div>
       <div class="sm muted" style="line-height:1.75">
-        Calendar sync needs a server: Google's OAuth flow requires somewhere to keep
-        the client secret and refresh tokens, and a static page has neither.
-        <br><br>
-        It's built and working in the full version, two-way, with CoachDesk winning
-        on conflict. Run the project locally and it's in <code>server/google.js</code>.
+        Google OAuth needs a server to hold the client secret and refresh tokens.
+        Two-way sync is implemented in <code>server/google.js</code>; run the full
+        version to use it.
       </div>
-      <div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeSheet()">Fair enough</button></div>`);
+      <div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeSheet()">Close</button></div>`);
     return;
   }
   const s = gStatus || { configured:false, connected:false };
@@ -1622,17 +1618,14 @@ function googlePanel(){
       </div>`;
   } else if (!s.connected){
     body = `<div class="sm muted" style="margin-bottom:18px;line-height:1.75">
-        Connecting lets CoachDesk push your sessions into Google Calendar so clients
-        get normal invites, and pull your existing events in so you're not checking two places.
+        Pushes your sessions into Google Calendar and pulls existing events back in.
       </div>
-      <div class="notice">Client names are <strong>not</strong> written into Google event titles.
-        Shared calendars would otherwise leak your client list.</div>
+      <div class="notice">Client names stay out of Google event titles.</div>
       <button class="btn" id="gConnect">Connect Google Calendar</button>`;
   } else {
     body = `<div class="kv"><div class="k">Account</div><div class="grow">${esc(s.email||"connected")}</div></div>
       <div class="kv"><div class="k">Last sync</div><div class="grow">${s.lastSyncAt?esc(fmtDT(s.lastSyncAt)):"Never"}</div></div>
-      <div class="notice" style="margin-top:16px">On conflict, <strong>CoachDesk wins</strong> — the version here
-        overwrites Google. Events created in Google are imported, not overwritten.</div>
+      <div class="notice" style="margin-top:16px">On conflict CoachDesk wins. Events made in Google are imported, not overwritten.</div>
       <div class="row" style="gap:9px">
         <button class="btn" id="gSync">Sync now</button>
         <button class="btn danger s" id="gOff">Disconnect</button>
@@ -1691,7 +1684,7 @@ function renderProfile(){
         <label class="fld"><span>Location</span><input class="pf" data-k="location" type="text" value="${esc(p.location)}"></label>
         <label class="fld"><span>Website</span><input class="pf" data-k="website" type="text" value="${esc(p.website)}"></label>
       </div>
-      <label class="fld"><span>Short bio</span><textarea class="pf" data-k="bio" placeholder="Two or three sentences a prospective client would actually read.">${esc(p.bio)}</textarea></label>
+      <label class="fld"><span>Short bio</span><textarea class="pf" data-k="bio" placeholder="A few sentences.">${esc(p.bio)}</textarea></label>
       <div class="grid2">
         <label class="fld"><span>Flier headline</span><input class="pf" data-k="tagline" type="text" value="${esc(p.tagline)}" placeholder="e.g. Private Tennis Coaching"></label>
         <label class="fld"><span>Call to action</span><input class="pf" data-k="offer" type="text" value="${esc(p.offer)}" placeholder="e.g. First session free"></label>
@@ -1838,15 +1831,13 @@ function accountPanel(){
   if (STATIC){
     openSheet("About this demo", `
       <div class="notice" style="margin-bottom:16px">
-        You're running the browser-only build. Everything works and saves to this
-        device, but there's no server behind it, so accounts, multi-device sync and
-        Google Calendar aren't part of this demo.
+        Demo build. No server, so no accounts, sync or Google Calendar.
       </div>
       <div class="kv"><div class="k">Your data</div><div class="grow">${counts}</div></div>
-      <div class="kv"><div class="k">Stored</div><div class="grow">In this browser only</div></div>
-      <div class="sec"><h2>Have a go</h2><div class="rule"></div></div>
+      <div class="kv"><div class="k">Stored</div><div class="grow">This browser</div></div>
+      <div class="sec"><h2>Try saying</h2><div class="rule"></div></div>
       <div class="xs muted" style="line-height:1.8;margin-bottom:14px">
-        Tap the microphone and say something like:<br>
+        
         &ldquo;I've got a new client Ryan Cole for golf, he's 27, 555-018-8100&rdquo;<br>
         &ldquo;Book Emma in for Tuesday at half past four&rdquo;
       </div>
@@ -1856,7 +1847,7 @@ function accountPanel(){
         <button class="btn ghost" id="aReset">Reset the demo</button>
       </div>
       <div class="xs faint" style="margin-top:14px;line-height:1.7">
-        Reset wipes your changes and puts the sample coach back.
+        Restores the sample data.
       </div>`,
       m => {
         m.querySelector("#aReset").onclick = () => {
@@ -1884,8 +1875,7 @@ function accountPanel(){
     </div>
     <button class="btn ghost" id="aEmail">Send confirmation link</button>
     <div class="xs faint" style="margin-top:8px;line-height:1.7">
-      Your address only changes once you open the link we send to the new one.
-      We'll also let ${esc(me?.email||"your current address")} know.
+      Nothing changes until you open the link sent to the new address.
     </div>
 
     <div class="sec"><h2>Data</h2><div class="rule"></div></div>
@@ -1900,7 +1890,7 @@ function accountPanel(){
       <button class="btn danger s" id="aOutAll">Sign out everywhere</button>
     </div>
     <div class="xs faint" style="margin-top:14px;line-height:1.7">
-      Signing out clears the copy stored on this device. Everything stays on the server.
+      Clears the local copy. Data stays on the server.
     </div>`,
     m => {
       m.querySelector("#aOut").onclick = () => doLogout(false);
@@ -1957,10 +1947,10 @@ function gateMsg(text, ok){
 }
 
 const GATE = {
-  in:     { submit:"Sign in",          foot:"Your notes sync privately across your devices." },
-  up:     { submit:"Create account",   foot:"Eight characters or more. Nothing is shared with anyone." },
-  forgot: { submit:"Send reset link",  foot:"We'll email you a link. It works once and expires in an hour." },
-  reset:  { submit:"Set new password", foot:"Setting a new password signs you out on every device." }
+  in:     { submit:"Sign in",          foot:"Syncs across your devices." },
+  up:     { submit:"Create account",   foot:"Eight characters or more." },
+  forgot: { submit:"Send reset link",  foot:"One-time link, expires in an hour." },
+  reset:  { submit:"Set new password", foot:"Signs you out everywhere." }
 };
 
 function setGateMode(mode, keepMsg){
@@ -2004,12 +1994,11 @@ function showBanner(){
   const b = $("#banner");
   const bits = [];
   if (STATIC) bits.push(
-    "<strong>Browser demo.</strong> Everything here runs locally and saves to this device only. " +
-    "Multi-device sync, accounts and Google Calendar need the server " +
-    "&mdash; <a href=\"https://github.com/Vinuboi321/coachdesk\">the code's on GitHub</a>."
+    "<strong>Demo mode.</strong> Saves to this device. " +
+    "<a href=\"https://github.com/Vinuboi321/coachdesk\">Source</a>"
   );
-  else if (inDemo) bits.push("<strong>Demo workspace.</strong> Edit anything you like, it resets next time someone opens the demo.");
-  else if (serverFlags.ephemeral) bits.push("<strong>Demo instance.</strong> Accounts and data reset when the server restarts.");
+  else if (inDemo) bits.push("<strong>Demo mode.</strong> Resets for the next visitor.");
+  else if (serverFlags.ephemeral) bits.push("<strong>Demo mode.</strong> Data resets on restart.");
   b.innerHTML = bits.join(" ");
   b.classList.toggle("hidden", !bits.length);
 }
@@ -2020,7 +2009,7 @@ function initGate(){
 
   $("#gDemo").onclick = async () => {
     const btn = $("#gDemo");
-    btn.disabled = true; btn.textContent = "Setting up the demo…";
+    btn.disabled = true; btn.textContent = "Loading…";
     try {
       const r = await api("/api/auth/demo", { method:"POST" });
       me = r.user; inDemo = true;
@@ -2028,7 +2017,7 @@ function initGate(){
       await enterApp({ fresh:true });
     } catch(e){
       gateMsg(e.message || "Couldn't start the demo.");
-      btn.disabled = false; btn.textContent = "Try the demo — no signup";
+      btn.disabled = false; btn.textContent = "Try the demo";
     }
   };
   $("#gForgot").onclick = () => {
@@ -2048,9 +2037,9 @@ function initGate(){
 
     // Client-side checks first, so obvious mistakes don't cost a round trip.
     if (gateMode === "up" && !$("#gAge").checked)
-      return gateMsg("Please confirm you're 18 or older.");
+      return gateMsg("Confirm you're 18 or older.");
     if (gateMode === "reset" && password !== $("#gPass2").value)
-      return gateMsg("Those two passwords don't match.");
+      return gateMsg("Passwords don't match.");
     if ((gateMode === "up" || gateMode === "reset") && password.length < 8)
       return gateMsg("Password needs to be at least 8 characters.");
 
@@ -2145,7 +2134,7 @@ function signedOut(){
   setGateMode("in");
   $("#gSubmit").disabled = false;
   const d = $("#gDemo");
-  if (d){ d.disabled = false; d.textContent = "Try the demo — no signup"; }
+  if (d){ d.disabled = false; d.textContent = "Try the demo"; }
 }
 
 async function enterApp({ fresh } = {}){
