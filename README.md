@@ -13,7 +13,7 @@ Client and scheduling manager for coaches, driven by voice. You say a sentence, 
 
 ## What it does
 
-Three sections: clients, calendar, and a profile that exports as a résumé or a client-facing flier. Everything works offline and syncs when you reconnect. You can type anywhere you can speak.
+Three sections: clients, calendar, and a profile that exports as a resume or a client-facing flier. Everything works offline and syncs when you reconnect. You can type anywhere you can speak.
 
 ## Activity Overview
 
