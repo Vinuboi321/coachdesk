@@ -94,7 +94,7 @@
       specialties: ["Junior development", "Serve mechanics", "Match strategy", "Return to play after injury"],
       experience: [
         { id: uid(), role: "Head Coach", org: "Riverside Tennis Club", period: "2019 to present",
-          detail: "Run the junior programme: forty players across four squads. Six have gone on to state level in the last three years." },
+          detail: "Run the junior program: forty players across four squads. Six have gone on to state level in the last three years." },
         { id: uid(), role: "Assistant Coach", org: "Lakeside Academy", period: "2014 to 2019",
           detail: "Adult clinics and one-to-one coaching." }
       ],
@@ -105,7 +105,7 @@
       ],
       testimonials: [
         { id: uid(), quote: "My daughter went from dreading matches to asking for extra sessions. Alex reads people as well as he reads a serve.", author: "Parent, junior squad" },
-        { id: uid(), quote: "Practical, patient, and honest about what needs work. Worth every session.", author: "Tom R., adult programme" }
+        { id: uid(), quote: "Practical, patient, and honest about what needs work. Worth every session.", author: "Tom R., adult program" }
       ]
     };
 
@@ -116,5 +116,5 @@
   // what's in localStorage and re-seeds when it differs - otherwise a
   // returning visitor keeps whatever they were given the first time,
   // forever, and edits to this file never reach them.
-  return { buildSeed: buildSeed, at: at, VERSION: 2 };
+  return { buildSeed: buildSeed, at: at, VERSION: 3 };
 });

@@ -4,7 +4,7 @@ Client and scheduling manager for coaches, driven by voice. You say a sentence, 
 
 [![CI](https://github.com/Vinuboi321/coachdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/Vinuboi321/coachdesk/actions/workflows/ci.yml)
 [![Pages](https://github.com/Vinuboi321/coachdesk/actions/workflows/pages.yml/badge.svg)](https://github.com/Vinuboi321/coachdesk/actions/workflows/pages.yml)
-![Tests](https://img.shields.io/badge/tests-142%20passing-3D5A4C)
+![Tests](https://img.shields.io/badge/tests-172%20passing-3D5A4C)
 ![Node](https://img.shields.io/badge/node-22%2B-3D5A4C)
 
 **[Live demo](https://vinuboi321.github.io/coachdesk/)** — browser-only build, loads instantly with sample data.
@@ -13,7 +13,7 @@ Client and scheduling manager for coaches, driven by voice. You say a sentence, 
 
 ## What it does
 
-Three sections: clients, calendar, and a profile that exports as a resume or a client-facing flier. Everything works offline and syncs when you reconnect. You can type anywhere you can speak.
+Four sections: an overview, clients, the calendar, and a profile that exports as a resume or a client-facing flyer. Everything works offline and syncs when you reconnect. You can type anywhere you can speak.
 
 ## Activity Overview
 
@@ -27,6 +27,10 @@ I've got a new student Anna Foster for swimming, 24, 555-010-1234
 It handles `tomorrow`, `next Tuesday`, `half past four`, `for an hour and a half`. An age under 18 opens guardian and consent fields on its own.
 
 Nothing saves without confirmation. Speech recognition mangles names constantly, and a misheard word shouldn't be able to cancel a real client's lesson.
+
+**The day, to scale.** The calendar draws the selected day against an hour ruler rather than listing appointments, so a 90-minute swim block really is twice a 45-minute session and the gap between four and six is visible as empty space. Overlapping lessons split into columns instead of hiding each other, which is the one thing you actually need a calendar to tell you.
+
+Motion is gated behind a class that JavaScript adds only when it's running and the user hasn't asked for reduced motion. Nothing is hidden by CSS alone — if the script fails, the page renders in its final state rather than a blank one.
 
 **Sync.** The cursor is a sequence number issued by the server, not a timestamp. Phone clocks drift, and a device running a few minutes fast would skip records permanently. Conflicts are last-write-wins per record; the losing device gets the winning version back in the same response and corrects itself. Deletes leave tombstones, otherwise a device that was offline during a deletion re-uploads the record and resurrects it.
 
@@ -43,7 +47,7 @@ npm start
 Node 22.5 or newer, which has SQLite built in. Then <http://localhost:3000>.
 
 ```bash
-npm test        # 142 checks across the parser, the server, and the deployed build
+npm test        # 172 checks across the parser, the server, and the deployed build
 ```
 
 Voice needs Chrome, Edge or Safari.

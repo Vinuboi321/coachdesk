@@ -83,8 +83,13 @@ function setSyncState(s){
   const d = document.getElementById("syncDot");
   if (!d) return;
   d.className = "syncdot" + (s==="ok"?" ok":s==="busy"?" busy":s==="error"?" err":"");
-  d.title = { idle:"Not synced yet", busy:"Syncing…", ok:"All changes saved",
-              offline:"Offline. Saved on this device", error:"Sync problem" }[s] || "";
+  const label = { idle:"Not synced", busy:"Syncing…", ok:"Saved",
+                  offline:"Offline", error:"Sync problem" }[s] || "";
+  const title = { idle:"Not synced yet", busy:"Syncing…", ok:"All changes saved",
+                  offline:"Offline. Saved on this device", error:"Sync problem" }[s] || "";
+  d.title = title;
+  const l = document.getElementById("syncLabel");
+  if (l) l.textContent = label;
 }
 
 function scheduleSync(delay = 1200){
@@ -271,7 +276,7 @@ function matchClients(query){
 --------------------------------------------------------------------- */
 const ACTIVITIES = [
   // multi-word first — longest match wins
-  "figure skating","martial arts","water polo","jiu jitsu","brazilian jiu jitsu","cross country",
+  "figure skating","martial arts","water polo","jiu jitsu","jiu-jitsu","brazilian jiu jitsu","cross country",
   "track and field","strength and conditioning","personal training","public speaking",
   "tennis","swimming","soccer","football","basketball","baseball","softball","golf","running",
   "track","cricket","hockey","volleyball","badminton","boxing","mma","wrestling","gymnastics",
@@ -962,6 +967,7 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 /* What to say, per section. The prompt should suggest something useful
    for the screen you're actually on. */
 const HINTS = {
+  dashboard:"Press / to jump here. Try “I have a new client Ryan Cole, golf, he's 27”",
   clients:  "Try “I have a new client Ryan Cole, golf, he's 27, 555-018-8100”",
   calendar: "Try “Schedule a lesson with Emma on Tuesday at 4pm”",
   profile:  "Try “Add certification Level 2 Instructor”"
@@ -1014,6 +1020,7 @@ function initVoice(){
     recog.onstart = () => {
       listening = true; finalText = "";
       btn.classList.add("live");
+      const barOn = $(".bar"); if (barOn) barOn.classList.add("live");
       $("#hint").textContent = "Listening…";
       stopSoon();
       maxTimer = setTimeout(() => { try { recog.stop(); } catch(e){} }, MAX_LISTEN_MS);
@@ -1037,6 +1044,7 @@ function initVoice(){
       listening = false;
       clearTimers();
       btn.classList.remove("live");
+      const barOff = $(".bar"); if (barOff) barOff.classList.remove("live");
       const val = input.value.trim();
       const prefix = micPrefix.trim();
       micPrefix = ""; finalText = "";
@@ -1050,6 +1058,7 @@ function initVoice(){
       listening = false;
       clearTimers();
       btn.classList.remove("live");
+      const barOff = $(".bar"); if (barOff) barOff.classList.remove("live");
       refreshHint();
       if (e.error === "aborted") return;          // we stopped it on purpose
       toast(e.error === "not-allowed" ? "Microphone blocked. Check browser permissions."
@@ -1125,6 +1134,87 @@ function watchDock(){
   window.addEventListener("orientationchange", () => setTimeout(measureDock, 150));
 }
 
+/* ---------- 8c. MOTION -------------------------------------------------
+   Two rules hold this together.
+
+   First, nothing is ever hidden by CSS alone. The `.reveal` styles are
+   scoped to `html.motion`, and that class is added here — so it needs JS
+   running and the user not asking for reduced motion. Fail either and the
+   page renders in its final state rather than a blank one. A reveal
+   animation that leaves content invisible when it breaks is worse than no
+   animation at all.
+
+   Second, the stagger is capped. Forty clients at 45ms each would leave
+   the last one waiting nearly two seconds; after eight steps it stops
+   accumulating and everything below arrives together.
+--------------------------------------------------------------------- */
+const MOTION = (() => {
+  try { return !window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+  catch (e) { return true; }
+})();
+if (MOTION) document.documentElement.classList.add("motion");
+
+const STAGGER_MS = 45, STAGGER_MAX = 8;
+let revealObs = null;
+
+/** Reveal on scroll. Falls back to showing everything at once. */
+function reveals(root){
+  const items = $$(".reveal:not(.in)", root || document);
+  if (!items.length) return;
+
+  if (!MOTION || typeof IntersectionObserver !== "function"){
+    items.forEach(el => el.classList.add("in"));
+    return;
+  }
+  if (!revealObs){
+    revealObs = new IntersectionObserver((entries, obs) => {
+      let i = 0;
+      for (const en of entries){
+        if (!en.isIntersecting) continue;
+        // Stagger within this batch only, so a card scrolled to on its own
+        // doesn't inherit a delay from something that fired minutes ago.
+        en.target.style.setProperty("--d", Math.min(i++, STAGGER_MAX) * STAGGER_MS + "ms");
+        en.target.classList.add("in");
+        obs.unobserve(en.target);
+      }
+    }, { rootMargin: "0px 0px -6% 0px", threshold: .01 });
+  }
+  items.forEach(el => revealObs.observe(el));
+}
+
+/* ---------- 8d. THEME --------------------------------------------------
+   Explicitly chosen rather than inherited from the OS. Someone coaching
+   outdoors wants the light theme at 2pm whatever their laptop thinks, and
+   the same person wants dark at 9pm writing up notes. First visit takes
+   the system preference as a starting guess, then the choice sticks.
+--------------------------------------------------------------------- */
+const THEME_KEY = "coachdesk.theme";
+
+function systemTheme(){
+  try { return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"; }
+  catch (e) { return "dark"; }
+}
+function setTheme(t){
+  document.documentElement.setAttribute("data-theme", t);
+  LS.set(THEME_KEY, t);
+  const i = $("#themeIcon");
+  if (i) i.innerHTML = t === "dark"
+    ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/>'
+    : '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
+}
+function initTheme(){
+  setTheme(LS.get(THEME_KEY) || systemTheme());
+  const b = $("#themeBtn");
+  if (b) b.onclick = () =>
+    setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+}
+
+/** Grow the chart bars once, after the panel is on screen. */
+function drawChart(){
+  const c = $(".chart");
+  if (c) requestAnimationFrame(() => c.classList.add("drawn"));
+}
+
 function showThinking(text){
   $("#confirmSlot").innerHTML = `<div class="confirm">
     <div class="kicker">Working that out…</div>
@@ -1172,8 +1262,148 @@ document.addEventListener("keydown", e => { if (e.key==="Escape") closeSheet(); 
 const ICON = {
   users:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>`,
   cal:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
-  doc:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg>`
+  doc:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg>`,
+  plus:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>`,
+  clock:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
+  check:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>`,
+  alert:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>`,
+  up:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`
 };
+
+/* ---------- 9b. OVERVIEW ----------------------------------------------
+   The landing view. Four counts, a week of session volume, and the next
+   few things that are actually happening. Nothing here is a vanity
+   metric: every number is one you'd act on.
+--------------------------------------------------------------------- */
+let dashRange = 7;
+
+function setRange(n){ dashRange = n; renderDashboard(); reveals($("#view-dashboard")); }
+
+/** Jump to the roster and open the client whose consent is missing. */
+function openConsentGap(id){
+  goTab("clients");
+  if (id) openClient(id);
+}
+
+/** Jump to the schedule with a particular day already selected. */
+function openDay(iso){
+  calSel = startOfDay(new Date(iso));
+  calCursor = new Date(calSel.getFullYear(), calSel.getMonth(), 1);
+  goTab("calendar");
+}
+
+function renderDashboard(){
+  const today = startOfDay(new Date());
+  const from = new Date(today); from.setDate(from.getDate() - (dashRange - 1));
+  const upcoming = events().filter(e => new Date(e.start) >= new Date())
+                           .sort((a,b) => new Date(a.start) - new Date(b.start));
+  const inRange = events().filter(e => { const d = new Date(e.start); return d >= from && d < new Date(today.getTime() + 864e5); });
+  const gaps = clients().filter(needsConsent).length;
+  const todays = events().filter(e => sameDay(e.start, today)).length;
+  const hours = Math.round(inRange.reduce((n,e) => n + (e.durationMin||60), 0) / 6) / 10;
+
+  // Per-day counts across the window, oldest first.
+  const days = [];
+  for (let i = dashRange - 1; i >= 0; i--){
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    days.push({ d, n: events().filter(e => sameDay(e.start, d)).length });
+  }
+  const peak = Math.max(1, ...days.map(x => x.n));
+
+  /* A tile is a button only when it leads somewhere specific. One target
+     per tile: a nested control inside a button is invalid markup and a
+     keyboard trap, so the tile's destination is whatever its footer is
+     talking about — the consent warning goes to the client who needs it,
+     not to the roster. */
+  const stat = (label, value, icon, foot, cls, go) => {
+    const body = `<div class="k"><span>${label}</span>${icon}</div>
+      <div class="v">${value}</div>
+      <div class="f ${cls||""}">${foot}${go ? '<span class="arr">→</span>' : ""}</div>`;
+    return go ? `<button class="stat reveal" onclick="${go}">${body}</button>`
+              : `<div class="stat reveal">${body}</div>`;
+  };
+
+  const firstGap = clients().filter(needsConsent).sort((a,b)=>a.name.localeCompare(b.name))[0];
+  const todayISO = today.toISOString();
+
+  const chart = `
+    <div class="chart">
+      ${days.map(x => `
+        <div class="col" title="${esc(fmtDay(x.d))}: ${x.n} session${x.n===1?"":"s"}">
+          <div class="track"><div class="fill" style="--h:${Math.round(x.n/peak*100)}%;height:${Math.round(x.n/peak*100)}%"></div></div>
+          <div class="lbl">${x.d.toLocaleDateString(undefined,{month:"short",day:"numeric"})}</div>
+        </div>`).join("")}
+    </div>`;
+
+  const nextUp = upcoming.slice(0, 5);
+
+  $("#view-dashboard").innerHTML = `
+    <div class="page-h">
+      <h1>Welcome back${me && me.name ? ", " + esc(me.name.split(" ")[0]) : ""}</h1>
+      <p>Everything on your plate, at a glance.</p>
+    </div>
+
+    <div class="bar-row">
+      <div class="seg">
+        <button onclick="setRange(1)"  aria-pressed="${dashRange===1}">Today</button>
+        <button onclick="setRange(7)"  aria-pressed="${dashRange===7}">Last 7 days</button>
+        <button onclick="setRange(30)" aria-pressed="${dashRange===30}">Last 30 days</button>
+      </div>
+      <div class="grow"></div>
+      <button class="btn ghost" onclick="goTab('calendar')">Open schedule</button>
+      <button class="btn" onclick="openClientEditor(null)">${ICON.plus} New client</button>
+    </div>
+
+    <div class="stats">
+      ${stat("Clients", clients().length, ICON.users,
+             gaps ? `${ICON.alert} ${gaps} need${gaps===1?"s":""} consent` : "All records complete",
+             gaps ? "warn" : "",
+             gaps ? `openConsentGap('${firstGap.id}')` : `goTab('clients')`)}
+      ${stat("Sessions today", todays, ICON.clock,
+             todays ? "On the schedule" : "Nothing booked",
+             "", `openDay('${todayISO}')`)}
+      ${stat("Coaching hours", hours, ICON.up,
+             `Last ${dashRange} day${dashRange===1?"":"s"}`, "up", `goTab('calendar')`)}
+      ${stat("Upcoming", upcoming.length, ICON.check,
+             upcoming.length ? "Next " + esc(fmtDT(upcoming[0].start)) : "Nothing ahead",
+             "", upcoming.length ? `openDay('${new Date(upcoming[0].start).toISOString()}')` : `goTab('calendar')`)}
+    </div>
+
+    <div class="panel reveal" style="margin-bottom:18px">
+      <div class="panel-h">
+        <div class="grow">
+          <h2>Session volume</h2>
+          <p>Last ${dashRange} day${dashRange===1?"":"s"}${peak>1?` · busiest day ${peak}`:""}</p>
+        </div>
+      </div>
+      <div class="panel-b">${chart}</div>
+    </div>
+
+    <div class="panel reveal">
+      <div class="panel-h">
+        <div class="grow"><h2>Next up</h2><p>The five closest sessions</p></div>
+        <button class="btn quiet s" onclick="goTab('calendar')">View all</button>
+      </div>
+      ${nextUp.length ? `<div class="panel-b flush">
+        <table class="tbl">
+          <thead><tr><th>When</th><th>Session</th><th class="opt">Client</th><th class="opt">Where</th></tr></thead>
+          <tbody>${nextUp.map(e => `<tr onclick="openEventEditor('${e.id}')">
+            <td class="num" style="font-weight:600">${esc(fmtDT(e.start))}</td>
+            <td>${esc(e.title)} <span class="faint">· ${e.durationMin}min</span></td>
+            <td class="opt muted">${e.clientId ? esc(clientName(e.clientId)) : '<span class="faint">—</span>'}</td>
+            <td class="opt muted">${e.location ? esc(e.location) : '<span class="faint">—</span>'}</td>
+          </tr>`).join("")}</tbody>
+        </table>
+      </div>` : `<div class="empty">
+        <div class="icon">${ICON.cal}</div>
+        <h3>Nothing scheduled</h3>
+        <p>Say when, and it lands on the calendar.</p>
+        <span class="sample" onclick="tryExample(&quot;book a lesson with Emma tomorrow at half past four&quot;)">book a lesson with Emma tomorrow at half past four</span>
+      </div>`}
+    </div>`;
+
+  drawChart();
+}
 
 /* ---------- 10. CLIENTS ----------------------------------------------- */
 let clientFilter = "";
@@ -1187,37 +1417,64 @@ function renderClients(){
   const rows = list.map(c => {
     const next = events().filter(e=>e.clientId===c.id && new Date(e.start)>=startOfDay(new Date()))
                          .sort((a,b)=>new Date(a.start)-new Date(b.start))[0];
-    const sub = next ? "Next · " + fmtDT(next.start)
-              : (c.notes||[]).length ? `${c.notes.length} note${c.notes.length>1?"s":""}`
-              : "No sessions yet";
-    return `<div class="card tight tap" onclick="openClient('${c.id}')">
-      <div class="row">
-        <div class="avatar">${esc(initials(c.name))}</div>
-        <div class="grow">
-          <div class="truncate" style="font-weight:600">${esc(c.name)}</div>
-          <div class="xs muted truncate">${needsConsent(c)?'<span class="warn-dot">●</span> ':""}${esc(sub)}</div>
-        </div>
-        ${(c.tags||[]).slice(0,2).map(t=>`<span class="chip">${esc(t)}</span>`).join("")}
-      </div></div>`;
+    const noteCount = (c.notes||[]).length;
+    const st = needsConsent(c) ? `<span class="pill red">Consent needed</span>`
+             : c.isMinor       ? `<span class="pill grey">Under 18</span>`
+             : next            ? `<span class="pill green">Booked</span>`
+             :                   `<span class="pill amber">No sessions</span>`;
+    return `<tr class="reveal" onclick="openClient('${c.id}')">
+      <td>
+        <span class="who">
+          <span class="av">${esc(initials(c.name))}</span>
+          <span class="nm truncate">${esc(c.name)}</span>
+        </span>
+      </td>
+      <td class="opt">${(c.tags||[]).slice(0,2).map(t=>`<span class="tag">${esc(t)}</span>`).join(" ") || '<span class="faint">—</span>'}</td>
+      <td>${st}</td>
+      <td class="opt num muted">${next ? esc(fmtDT(next.start)) : '<span class="faint">—</span>'}</td>
+      <td class="opt muted">${noteCount ? noteCount + (noteCount>1?" notes":" note") : '<span class="faint">—</span>'}</td>
+    </tr>`;
   }).join("");
 
   // One quiet banner rather than a warning on every affected row.
   const gaps = clients().filter(needsConsent).length;
 
   $("#view-clients").innerHTML = `
-    <div class="row" style="margin:4px 0 14px;gap:9px">
-      <input type="text" id="cSearch" placeholder="Search clients…" value="${esc(clientFilter)}">
-      <button class="btn" style="flex:none" onclick="openClientEditor(null)">New</button>
+    <div class="page-h">
+      <h1>Clients</h1>
+      <p>Everyone you coach, and where each of them stands.</p>
     </div>
-    ${gaps ? `<div class="notice bad" style="margin-bottom:12px">
+    <div class="bar-row">
+      <input type="text" id="cSearch" placeholder="Search name or focus…" value="${esc(clientFilter)}" style="max-width:300px">
+      <div class="grow"></div>
+      <button class="btn" onclick="openClientEditor(null)">${ICON.plus} New client</button>
+    </div>
+    ${gaps ? `<div class="notice bad">
       <strong>${gaps} client${gaps>1?"s":""} under 18</strong> ${gaps>1?"have":"has"} no guardian consent recorded.
     </div>` : ""}
-    ${list.length ? rows : emptyClients()}`;
+    <div class="panel">
+      <div class="panel-h">
+        <div class="grow">
+          <h2>Roster</h2>
+          <p>${clients().length} client${clients().length===1?"":"s"}${q?` · ${list.length} matching`:""}</p>
+        </div>
+      </div>
+      ${list.length ? `<div class="panel-b flush">
+        <table class="tbl">
+          <thead><tr>
+            <th>Name</th><th class="opt">Focus</th><th>Status</th>
+            <th class="opt">Next session</th><th class="opt">Notes</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>` : emptyClients()}
+    </div>`;
 
   const si = $("#cSearch");
   si.oninput = e => {
     clientFilter = e.target.value; renderClients();
     const n=$("#cSearch"); n.focus(); n.setSelectionRange(n.value.length,n.value.length);
+    reveals($("#view-clients"));
   };
 }
 
@@ -1316,7 +1573,7 @@ const fieldRow = (k,v) => `<div class="row fieldrow" style="gap:8px;margin-botto
    This is a prompt and a record, not a compliance product. It doesn't
    make anyone compliant on its own.
 --------------------------------------------------------------------- */
-const CONSENT_METHODS = ["Signed form", "Email", "Verbal", "Held by club or organisation"];
+const CONSENT_METHODS = ["Signed form", "Email", "Verbal", "Held by club or organization"];
 
 const isMinor = c => !!(c && c.isMinor);
 const hasConsent = c => !!(c && c.consent && c.consent.obtained);
@@ -1474,6 +1731,95 @@ function openClientEditor(id){
 let calCursor = startOfDay(new Date());
 let calSel = startOfDay(new Date());
 
+/* The window the ruler covers when nothing forces it wider. Most coaching
+   happens between an early swim session and an evening court booking. */
+const DAY_OPEN = 7, DAY_CLOSE = 21;
+
+/** Widen the window to fit whatever is actually booked that day. */
+function dayWindow(list){
+  let from = DAY_OPEN, to = DAY_CLOSE;
+  for (const e of list){
+    const d = new Date(e.start);
+    const startH = d.getHours();
+    const endH = Math.ceil((d.getHours() * 60 + d.getMinutes() + (e.durationMin || 60)) / 60);
+    if (startH < from) from = startH;
+    if (endH > to) to = endH;
+  }
+  return { from: Math.max(0, from), to: Math.min(24, Math.max(to, from + 4)) };
+}
+
+/* Two lessons at the same hour must not sit on top of each other — a
+   double-booking is exactly the thing you need the calendar to show you.
+   Greedy column packing: each event takes the first column free at its
+   start time, and overlapping events end up side by side. */
+function packColumns(list){
+  const placed = [];
+  const colEnds = [];
+  for (const e of list){
+    const s = new Date(e.start).getTime();
+    const end = s + (e.durationMin || 60) * 60000;
+    let col = colEnds.findIndex(t => t <= s);
+    if (col === -1){ col = colEnds.length; colEnds.push(end); }
+    else colEnds[col] = end;
+    placed.push({ e, col, s, end });
+  }
+  // Width is shared across the busiest stretch, so columns stay aligned.
+  const cols = Math.max(1, colEnds.length);
+  return { placed, cols };
+}
+
+function dayStrip(list, sel){
+  const { from, to } = dayWindow(list);
+  const span = to - from;
+  const { placed, cols } = packColumns(list);
+  const gut = "54px";
+
+  const hours = [];
+  for (let h = from; h <= to; h++){
+    const at = `calc(${h - from} * var(--hour))`;
+    const label = h === 0 ? "12a" : h === 12 ? "12p" : h < 12 ? h + "a" : (h - 12) + "p";
+    hours.push(`<div class="rule" style="top:${at}"></div>
+                <div class="hr" style="top:${at}">${label}</div>`);
+  }
+
+  const now = new Date();
+  let nowLine = "";
+  if (sameDay(sel, now)){
+    const h = now.getHours() + now.getMinutes() / 60;
+    if (h >= from && h <= to){
+      nowLine = `<div class="now" style="top:calc(${(h - from).toFixed(3)} * var(--hour))"
+                      title="Now"></div>`;
+    }
+  }
+
+  const blocks = placed.map(({ e, col }, i) => {
+    const d = new Date(e.start);
+    const offset = d.getHours() + d.getMinutes() / 60 - from;
+    const mins = e.durationMin || 60;
+    const height = Math.max(mins / 60, .5);            // 30 minutes is the floor
+    const short = mins < 45;
+    const w = `calc((100% - ${gut}) / ${cols} - 3px)`;
+    const l = `calc(${gut} + (100% - ${gut}) * ${(col / cols).toFixed(4)})`;
+    const meta = [e.clientId ? clientName(e.clientId) : "", mins + "min", e.location]
+                   .filter(Boolean).join(" · ");
+    return `<button class="blk ${short ? "short" : ""}"
+        style="top:calc(${offset.toFixed(3)} * var(--hour));
+               height:calc(${height.toFixed(3)} * var(--hour) - 3px);
+               left:${l};width:${w};--d:${Math.min(i, 7) * 55}ms"
+        onclick="openEventEditor('${e.id}')">
+        <span class="t truncate">${esc(e.title)}</span>
+        ${meta ? `<span class="m truncate">${esc(meta)}</span>` : ""}
+      </button>`;
+  }).join("");
+
+  return `<div class="day" style="height:calc(${span} * var(--hour) + 8px)">
+    ${hours.join("")}
+    ${nowLine}
+    ${blocks}
+    ${list.length ? "" : `<div class="day-empty">Nothing booked. Say when, and it lands here.</div>`}
+  </div>`;
+}
+
 function renderCalendar(){
   const y=calCursor.getFullYear(), mo=calCursor.getMonth();
   const pad = new Date(y,mo,1).getDay();
@@ -1485,45 +1831,79 @@ function renderCalendar(){
   }
   const day = events().filter(e=>sameDay(e.start,calSel)).sort((a,b)=>new Date(a.start)-new Date(b.start));
   const soon = events().filter(e=>new Date(e.start)>=startOfDay(today)).sort((a,b)=>new Date(a.start)-new Date(b.start)).slice(0,6);
+  const turn = calTurn ? " turn-" + calTurn : "";
+  calTurn = null;
+
+  const booked = day.reduce((n,e) => n + (e.durationMin||60), 0);
 
   $("#view-calendar").innerHTML = `
-    <div class="card" style="padding:20px">
-      <div class="cal-top">
-        <div class="cal-title">${MON[mo]} ${y}</div>
-        <button class="nav-btn" onclick="moveMonth(-1)" aria-label="Previous month">‹</button>
-        <button class="nav-btn" onclick="moveMonth(1)" aria-label="Next month">›</button>
-        <button class="btn quiet s" onclick="goToday()">Today</button>
-      </div>
-      <div class="cal-grid">
-        ${["S","M","T","W","T","F","S"].map(d=>`<div class="dow">${d}</div>`).join("")}
-        ${cells.map(c=>`<button class="cell ${c.out?"out":""} ${sameDay(c.d,today)?"today":""} ${sameDay(c.d,calSel)?"sel":""}"
-            onclick="selectDay('${c.d.toISOString()}')">
-            <span class="n">${c.d.getDate()}</span>
-            <span class="dots">${"<i></i>".repeat(Math.min(c.n,3))}</span>
-          </button>`).join("")}
-      </div>
+    <div class="page-h">
+      <h1>Schedule</h1>
+      <p>Pick a day on the left; it's drawn to scale on the right.</p>
     </div>
 
-    <div class="sec"><h2>${esc(fmtDay(calSel))}</h2><div class="rule"></div>
-      <button class="btn quiet s" onclick="openEventEditor(null,'${calSel.toISOString()}')">Add</button></div>
-    ${day.length ? day.map(evCard).join("") : `<div class="sm faint" style="padding:2px 2px 8px">Nothing scheduled.</div>`}
-
-    ${soon.length ? `<div class="sec"><h2>Coming up</h2><div class="rule"></div></div>${soon.map(evCard).join("")}` : ""}
-
-    <div class="card tight" style="margin-top:22px">
-      <div class="row">
-        <div class="grow">
-          <div class="sm" style="font-weight:600">Google Calendar</div>
-          <div class="xs muted" id="gStatusLine">Checking…</div>
+    <div class="cal-wrap">
+      <div>
+        <div class="panel" style="margin-bottom:14px">
+          <div class="panel-b">
+            <div class="cal-top">
+              <div class="cal-title">${MON[mo]} ${y}</div>
+              <button class="nav-btn" onclick="moveMonth(-1)" aria-label="Previous month">‹</button>
+              <button class="nav-btn" onclick="moveMonth(1)" aria-label="Next month">›</button>
+              <button class="btn quiet s" onclick="goToday()">Today</button>
+            </div>
+            <div class="cal-grid${turn}">
+              ${["S","M","T","W","T","F","S"].map(d=>`<div class="dow">${d}</div>`).join("")}
+              ${cells.map(c=>`<button class="cell ${c.out?"out":""} ${sameDay(c.d,today)?"today":""} ${sameDay(c.d,calSel)?"sel":""}"
+                  onclick="selectDay('${c.d.toISOString()}')">
+                  <span class="n">${c.d.getDate()}</span>
+                  <span class="dots">${"<i></i>".repeat(Math.min(c.n,3))}</span>
+                </button>`).join("")}
+            </div>
+          </div>
         </div>
-        <button class="btn ghost s" onclick="googlePanel()">Manage</button>
+
+        <div class="panel reveal">
+          <div class="panel-h">
+            <div class="grow"><h2>Google Calendar</h2><p id="gStatusLine">Checking…</p></div>
+            <button class="btn ghost s" onclick="googlePanel()">Manage</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel" style="margin-bottom:14px">
+          <div class="panel-h">
+            <div class="grow">
+              <h2>${esc(fmtDay(calSel))}</h2>
+              <p>${day.length ? `${day.length} session${day.length===1?"":"s"} · ${Math.round(booked/6)/10}h booked` : "Clear"}</p>
+            </div>
+            <button class="btn s" onclick="openEventEditor(null,'${calSel.toISOString()}')">${ICON.plus} Add</button>
+          </div>
+          <div class="panel-b">${dayStrip(day, calSel)}</div>
+        </div>
+
+        ${soon.length ? `<div class="panel reveal">
+          <div class="panel-h"><div class="grow"><h2>Coming up</h2><p>Across every day</p></div></div>
+          <div class="panel-b flush">
+            <table class="tbl">
+              <thead><tr><th>When</th><th>Session</th><th class="opt">Client</th><th class="opt">Where</th></tr></thead>
+              <tbody>${soon.map(e => `<tr class="reveal" onclick="openEventEditor('${e.id}')">
+                <td class="num" style="font-weight:600">${esc(fmtDT(e.start))}</td>
+                <td>${esc(e.title)} <span class="faint">· ${e.durationMin}min</span></td>
+                <td class="opt muted">${e.clientId ? esc(clientName(e.clientId)) : '<span class="faint">—</span>'}</td>
+                <td class="opt muted">${e.location ? esc(e.location) : '<span class="faint">—</span>'}${e.googleEventId ? ' <span class="pill green">synced</span>' : ""}</td>
+              </tr>`).join("")}</tbody>
+            </table>
+          </div>
+        </div>` : `<div class="panel"><div class="panel-b"><div class="faint sm">Nothing scheduled ahead.</div></div></div>`}
       </div>
     </div>`;
 
   refreshGoogleLine();
 }
 
-const evCard = e => `<div class="card tight tap" onclick="openEventEditor('${e.id}')">
+const evCard = e => `<div class="card tight tap reveal" onclick="openEventEditor('${e.id}')">
   <div class="ev">
     <div class="when"><div class="t">${esc(fmtTime(e.start))}</div><div class="d">${esc(fmtDay(e.start))}</div></div>
     <div class="spine"></div>
@@ -1533,9 +1913,15 @@ const evCard = e => `<div class="card tight tap" onclick="openEventEditor('${e.i
     </div>
   </div></div>`;
 
-function moveMonth(n){ calCursor=new Date(calCursor.getFullYear(),calCursor.getMonth()+n,1); renderCalendar(); }
-function goToday(){ calCursor=startOfDay(new Date()); calSel=startOfDay(new Date()); renderCalendar(); }
-function selectDay(iso){ calSel=startOfDay(new Date(iso)); renderCalendar(); }
+// Which way the month grid should come in from. Consumed once per render.
+let calTurn = null;
+
+function moveMonth(n){
+  calTurn = n < 0 ? "l" : "r";
+  calCursor=new Date(calCursor.getFullYear(),calCursor.getMonth()+n,1); renderCalendar(); reveals($("#view-calendar"));
+}
+function goToday(){ calCursor=startOfDay(new Date()); calSel=startOfDay(new Date()); renderCalendar(); reveals($("#view-calendar")); }
+function selectDay(iso){ calSel=startOfDay(new Date(iso)); renderCalendar(); reveals($("#view-calendar")); }
 
 function openEventEditor(id, defISO){
   const e = id ? events().find(x=>x.id===id) : null;
@@ -1686,7 +2072,7 @@ function renderProfile(){
       </div>
       <label class="fld"><span>Short bio</span><textarea class="pf" data-k="bio" placeholder="A few sentences.">${esc(p.bio)}</textarea></label>
       <div class="grid2">
-        <label class="fld"><span>Flier headline</span><input class="pf" data-k="tagline" type="text" value="${esc(p.tagline)}" placeholder="e.g. Private Tennis Coaching"></label>
+        <label class="fld"><span>Flyer headline</span><input class="pf" data-k="tagline" type="text" value="${esc(p.tagline)}" placeholder="e.g. Private Tennis Coaching"></label>
         <label class="fld"><span>Call to action</span><input class="pf" data-k="offer" type="text" value="${esc(p.offer)}" placeholder="e.g. First session free"></label>
       </div>
     </div>
@@ -1715,14 +2101,14 @@ function renderProfile(){
       "editCert(null)", "Say “Add certification USPTA Level 2”.")}
 
     ${block("Testimonials", p.testimonials, x=>`<div class="card tight"><div class="row">
-        <div class="grow"><div class="sm serif" style="font-style:italic">“${esc(x.quote)}”</div>
+        <div class="grow"><div class="sm" style="font-style:italic">“${esc(x.quote)}”</div>
         <div class="xs muted" style="margin-top:4px">${esc(x.author)||"—"}</div></div>
         <button class="btn quiet s" onclick="editTest('${x.id}')">Edit</button></div></div>`,
       "editTest(null)", "Say “Add testimonial Best coach my daughter has had”.")}
 
     <div class="row" style="margin-top:24px;gap:9px">
-      <button class="btn grow" onclick="preview('resume')">Preview résumé</button>
-      <button class="btn ghost grow" onclick="preview('flier')">Preview flier</button>
+      <button class="btn grow" onclick="preview('resume')">Preview resume</button>
+      <button class="btn ghost grow" onclick="preview('flier')">Preview flyer</button>
     </div>`;
 
   $$(".pf").forEach(el => {
@@ -1810,7 +2196,7 @@ function flierHTML(){
 }
 function preview(kind){
   const html = kind==="resume" ? resumeHTML() : flierHTML();
-  openSheet(kind==="resume" ? "Résumé" : "Flier", `
+  openSheet(kind==="resume" ? "Resume" : "Flyer", `
     <div id="docHost">${html}</div>
     <div class="row no-print" style="margin-top:16px;gap:9px">
       <button class="btn" onclick="window.print()">Print / Save as PDF</button>
@@ -1859,7 +2245,7 @@ function accountPanel(){
   }
 
   const sync = { idle:"Waiting to sync", busy:"Syncing…", ok:"All changes saved",
-                 offline:"Offline — saved on this device", error:"Sync problem" }[syncState] || "—";
+                 offline:"Offline. Saved on this device", error:"Sync problem" }[syncState] || "—";
   openSheet("Account", `
     <div class="kv"><div class="k">Signed in</div><div class="grow">${esc(me?.email||"")}</div></div>
     <div class="kv"><div class="k">Sync</div><div class="grow">${esc(sync)}${dirty.size?` · ${dirty.size} pending`:""}</div></div>
@@ -2141,6 +2527,7 @@ async function enterApp({ fresh } = {}){
   $("#gate").classList.add("hidden");
   $("#app").classList.remove("hidden");
   showBanner();
+  initTheme();
   restore();
   render();
   watchDock();
@@ -2152,26 +2539,54 @@ async function enterApp({ fresh } = {}){
 }
 
 /* ---------- 16. BOOT --------------------------------------------------- */
-let activeTab = "clients";
+let activeTab = "dashboard";
 
 function render(){
   if (!me) return;
   $("#bClients").textContent = clients().length;
   $("#bEvents").textContent  = events().filter(e=>new Date(e.start)>=startOfDay(new Date())).length;
+  if (activeTab==="dashboard") renderDashboard();
   if (activeTab==="clients")  renderClients();
   if (activeTab==="calendar") renderCalendar();
   if (activeTab==="profile")  renderProfile();
+  reveals($("#view-" + activeTab));
+  paintIdentity();
+}
+
+/** Name and initials in the sidebar footer, from whatever we know. */
+function paintIdentity(){
+  const name = (S.profile && S.profile.name) || (me && me.email) || "Coach";
+  const role = (S.profile && S.profile.title) || (me && me.email) || "Signed in";
+  const n = $("#userName"), r = $("#userRole"), a = $("#userAv");
+  if (n) n.textContent = name;
+  if (r) r.textContent = role;
+  if (a) a.textContent = initials(name);
 }
 
 function goTab(name){
   activeTab = name;
-  $$("nav.tabs button").forEach(x => x.setAttribute("aria-selected", String(x.dataset.tab === name)));
+  $$(".nav-item[data-tab]").forEach(x =>
+    x.setAttribute("aria-current", x.dataset.tab === name ? "page" : "false"));
   $$("section.view").forEach(v => v.classList.toggle("active", v.id === "view-" + name));
+  document.documentElement.classList.remove("side-open");   // close the drawer on phones
+  window.scrollTo(0, 0);
   render();
   refreshHint();
 }
-$$("nav.tabs button").forEach(b => b.onclick = () => goTab(b.dataset.tab));
+$$(".nav-item[data-tab]").forEach(b => b.onclick = () => goTab(b.dataset.tab));
 $("#btnAccount").onclick = accountPanel;
+
+/* sidebar drawer + keyboard shortcut */
+const toggleSide = () => document.documentElement.classList.toggle("side-open");
+if ($("#sideToggle")) $("#sideToggle").onclick = toggleSide;
+if ($("#sideScrim"))  $("#sideScrim").onclick  = toggleSide;
+if ($("#btnOut"))     $("#btnOut").onclick     = () => accountPanel();
+
+document.addEventListener("keydown", e => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target||{}).tagName || "");
+  if (e.key === "/" && !typing){ e.preventDefault(); const c = $("#cmd"); if (c) c.focus(); }
+  if (e.key === "Escape") document.documentElement.classList.remove("side-open");
+});
 
 const SEED_KEY = "coachdesk.v2.seedVersion";
 
@@ -2202,7 +2617,9 @@ async function bootStatic(){
   $("#app").classList.remove("hidden");
   showBanner();
   setSyncState("ok");
+  initTheme();
   render();
+  refreshHint();
   watchDock();
 }
 
@@ -2235,4 +2652,4 @@ Object.assign(window, { openClient, openClientEditor, addNoteTo, closeSheet, dis
   tryExample, moveMonth, goToday, selectDay, openEventEditor, googlePanel, preview, copyDoc,
   editExp, editCert, editTest, delSpec, exportJSON, exportClient, accountPanel, syncNow,
   parseCommand, goTab, startScheduling, bootStatic, retryVoice, measureDock,
-  refreshHint, currentHint });
+  refreshHint, currentHint, setRange, setTheme, openConsentGap, openDay });

@@ -4,3 +4,6 @@ dist/
 .env
 *.log
 .DS_Store
+
+# Tooling installed into this folder, not part of the app.
+.claude/

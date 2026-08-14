@@ -74,8 +74,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   console.log("\n  Seeded with a worked example\n");
   ok("six clients", parseInt(text("#bClients"), 10) === 6, text("#bClients"));
   ok("upcoming events present", parseInt(text("#bEvents"), 10) > 0);
-  ok("client list rendered", w.document.querySelectorAll("#view-clients .card").length >= 6);
+  ok("overview is the landing view", visible($("#view-dashboard")));
+  ok("stat cards rendered", w.document.querySelectorAll("#view-dashboard .stat").length === 4);
+  ok("session chart rendered", w.document.querySelectorAll("#view-dashboard .chart .col").length === 7);
+
+  w.goTab("clients");
+  ok("roster rendered as a table", w.document.querySelectorAll("#view-clients .tbl tbody tr").length >= 6);
   ok("missing-consent warning shown", /no guardian consent recorded/i.test(text("#view-clients")));
+  ok("consent gap flagged on the row", /Consent needed/.test(text("#view-clients")));
   ok("no retired placeholder names left over",
      !/jacob|nadia|haddad|okafor|priya nair|aisha/i.test(w.document.body.innerHTML));
 
@@ -168,6 +174,110 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok("current seed applied", after.clients.some(c => c.name === "Emma Clark"));
   ok("version bumped to current",
      w.localStorage.getItem("coachdesk.v2.seedVersion") === String(w.CoachDeskSeed.VERSION));
+
+  /* Motion must never be load-bearing. jsdom has no IntersectionObserver,
+     which is the same situation as an old browser or a failed script — the
+     content has to end up visible anyway. A reveal animation that leaves
+     the page blank when it breaks is worse than no animation. */
+  /* A tile that states a problem should take you to the problem. Only the
+     tiles that lead somewhere specific are buttons — the rest stay inert
+     rather than offering a press that does nothing useful. */
+  console.log("\n  Overview tiles go where they point\n");
+  w.goTab("dashboard");
+  await wait(120);
+  const tiles = [...w.document.querySelectorAll("#view-dashboard .stat")];
+  ok("four tiles", tiles.length === 4, tiles.length + "");
+  ok("all four are pressable", tiles.every(t => t.tagName === "BUTTON"),
+     tiles.map(t => t.tagName).join(","));
+  ok("each shows a direction arrow", tiles.every(t => /→/.test(t.textContent)));
+
+  const consentTile = tiles.find(t => /consent/i.test(t.textContent));
+  ok("the consent gap is surfaced on a tile", !!consentTile, tiles.map(t=>t.textContent.trim().slice(0,24)).join(" | "));
+  consentTile.click();
+  await wait(150);
+  ok("pressing it lands on the roster", visible($("#view-clients")));
+  ok("and opens the client who is missing consent",
+     /Lily Hayes/.test(text("#sheet")) && $("#scrim").classList.contains("on"),
+     text("#sheet").slice(0, 60));
+  w.closeSheet();
+
+  w.goTab("dashboard");
+  await wait(120);
+  const todayTile = [...w.document.querySelectorAll("#view-dashboard .stat")]
+    .find(t => /Sessions today/.test(t.textContent));
+  todayTile.click();
+  await wait(150);
+  ok("the sessions tile opens the schedule", visible($("#view-calendar")));
+  ok("with today selected", !!$(".cell.sel.today"));
+
+  console.log("\n  Nothing is hidden when the reveal can't run\n");
+  ok("motion class applied", w.document.documentElement.classList.contains("motion"));
+  const toReveal = w.document.querySelectorAll(".reveal").length;
+  const revealed = w.document.querySelectorAll(".reveal.in").length;
+  ok("every reveal fell back to visible", toReveal > 0 && toReveal === revealed, `${revealed}/${toReveal}`);
+
+  console.log("\n  The console shell\n");
+  ok("sidebar present", !!$("aside.side"));
+  w.goTab("clients");
+  ok("the current section is marked in the sidebar",
+     $('.nav-item[data-tab="clients"]').getAttribute("aria-current") === "page" &&
+     $('.nav-item[data-tab="calendar"]').getAttribute("aria-current") !== "page");
+  ok("theme starts dark", w.document.documentElement.getAttribute("data-theme") === "dark");
+  $("#themeBtn").click();
+  ok("the theme toggle switches to light", w.document.documentElement.getAttribute("data-theme") === "light");
+  ok("and the choice is remembered", w.localStorage.getItem("coachdesk.theme") === "light");
+  $("#themeBtn").click();
+  ok("and switches back", w.document.documentElement.getAttribute("data-theme") === "dark");
+
+  /* The day is drawn against an hour ruler rather than stacked as rows, so
+     a 90-minute swim really is twice a 45-minute session. If these stop
+     being proportional the whole point of the view is gone. */
+  console.log("\n  The day is drawn to scale\n");
+  w.goTab("calendar");
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  w.selectDay(tomorrow.toISOString());
+  await wait(120);
+
+  ok("strip rendered", !!$(".day"));
+  const hourLabels = [...w.document.querySelectorAll(".day .hr")].map(e => e.textContent);
+  ok("hours labelled as clock time", hourLabels.includes("7a") && hourLabels.includes("12p"), hourLabels.join(","));
+
+  const blocks = [...w.document.querySelectorAll(".blk")];
+  ok("blocks present", blocks.length > 0, blocks.length + " blocks");
+  ok("every block positioned in hour units",
+     blocks.every(b => /var\(--hour\)/.test(b.style.height) && /var\(--hour\)/.test(b.style.top)));
+
+  const hourSpan = s => parseFloat((s.match(/([\d.]+) \* var\(--hour\)/) || [])[1]);
+  const heights = blocks.map(b => hourSpan(b.style.height)).filter(n => !isNaN(n));
+  ok("different durations give different heights", new Set(heights).size > 1, heights.join(","));
+  ok("nothing renders thinner than half an hour", heights.every(h => h >= 0.5), heights.join(","));
+
+  /* A double-booking is precisely what you need a calendar to show you, so
+     overlapping events sit side by side instead of hiding each other. */
+  console.log("\n  A double-booking is visible, not stacked\n");
+  const at = (h, m) => new Date(2026, 7, 20, h, m || 0, 0).toISOString();
+  const ev = (id, title, h, m, dur) => ({
+    id, title, clientId: null, start: at(h, m), durationMin: dur,
+    location: "", notes: "", source: "local", deleted: false, updated_at: new Date().toISOString()
+  });
+  w.localStorage.setItem("coachdesk.v2.state", JSON.stringify({
+    clients: [],
+    events: [ev("a", "Emma", 10, 0, 60), ev("b", "Jack", 10, 30, 60), ev("c", "Tom", 14, 0, 60)],
+    profile: JSON.parse(w.localStorage.getItem("coachdesk.v2.state")).profile
+  }));
+  w.localStorage.setItem("coachdesk.v2.seedVersion", String(w.CoachDeskSeed.VERSION));
+  await w.bootStatic();
+  w.goTab("calendar");
+  w.selectDay(at(9, 0));
+  await wait(120);
+
+  const clash = [...w.document.querySelectorAll(".blk")];
+  ok("all three rendered", clash.length === 3, clash.length + " blocks");
+  ok("the 10:00 and 10:30 sit in different columns", clash[0].style.left !== clash[1].style.left,
+     clash.map(b => b.style.left).join(" | "));
+  ok("and share the width between them", /0\.5|\/ ?2/.test(clash[0].style.width), clash[0].style.width);
+  ok("the free 14:00 slot goes back to the first column", clash[2].style.left === clash[0].style.left,
+     clash[2].style.left + " vs " + clash[0].style.left);
 
   console.log(`\n  ${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
