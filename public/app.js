@@ -964,6 +964,12 @@ function commitPending(){
 --------------------------------------------------------------------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+/* Every browser on an iPhone is Safari underneath, and Safari's speech
+   recognition is Apple's dictation service rather than a cloud one — so it
+   fails in ways no other browser does. Worth knowing about explicitly. */
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
 /* What to say, per section. The prompt should suggest something useful
    for the screen you're actually on. */
 const HINTS = {
@@ -1007,7 +1013,13 @@ function initVoice(){
     input.placeholder = "Type a command…";
   } else {
     recog = new SR();
-    recog.continuous = true;        // we decide when it's over, not the browser
+
+    /* Safari on iOS goes deaf after the first utterance in continuous mode:
+       onresult stops firing, and neither onend nor onerror ever runs, so the
+       mic sits there looking live forever. Letting it close after one phrase
+       is the only reliable behaviour there. Everywhere else we keep control
+       of when listening ends, which is what lets someone pause mid-sentence. */
+    recog.continuous = !IOS;
     recog.interimResults = true;
     recog.lang = navigator.language || "en-US";
 
@@ -1061,9 +1073,22 @@ function initVoice(){
       const barOff = $(".bar"); if (barOff) barOff.classList.remove("live");
       refreshHint();
       if (e.error === "aborted") return;          // we stopped it on purpose
-      toast(e.error === "not-allowed" ? "Microphone blocked. Check browser permissions."
-          : e.error === "no-speech"   ? "Didn't hear anything. Try again."
-          : "Voice error: " + e.error);
+
+      /* "not-allowed" is the microphone; "service-not-allowed" is the speech
+         engine behind it, which is a different problem with a different fix.
+         On iOS that engine is Apple's dictation, so the answer is a Settings
+         toggle rather than anything to do with this site's permissions —
+         saying "voice error" there sends people hunting in the wrong place. */
+      const msg =
+          e.error === "not-allowed"        ? "Microphone blocked. Allow it for this site in your browser settings."
+        : e.error === "service-not-allowed" ? (IOS
+            ? "iPhone dictation is off. Settings → General → Keyboard → Enable Dictation, then try again."
+            : "Your browser blocked its speech service. Typing works the same way.")
+        : e.error === "no-speech"           ? "Didn't hear anything. Try again."
+        : e.error === "audio-capture"       ? "No microphone found."
+        : e.error === "network"             ? "Speech recognition needs a connection. Type it instead."
+        : "Voice didn't start (" + e.error + "). Typing works the same way.";
+      toast(msg);
     };
 
     btn.onclick = () => {

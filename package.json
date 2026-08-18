@@ -2,7 +2,7 @@
   "name": "coachdesk",
   "version": "0.2.0",
   "private": true,
-  "description": "Voice-first workspace for coaches — clients, calendar, and a résumé you can send.",
+  "description": "Voice-driven client and scheduling manager for coaches.",
   "type": "commonjs",
   "main": "server/index.js",
   "scripts": {
